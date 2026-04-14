@@ -246,7 +246,7 @@ export function buildSymptomAssistantReply(userText: string): string {
   }
   lines.push("");
   lines.push(
-    "For insurance steps, try the **PA predictor** in Scriptids; for side-effect trends by drug, open **Drug intelligence**—both are guides, not personal medical decisions.",
+    "For prescription coverage steps, try **Prior authorization prediction** in Scriptids; for side-effect trends by drug, open **Drug intelligence**—both are guides, not personal medical decisions.",
   );
   lines.push("");
   lines.push(disclaimer);

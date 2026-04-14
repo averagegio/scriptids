@@ -17,9 +17,14 @@ export default function ChatPage() {
       </h1>
       <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
         Type how you feel in everyday words. Scripti suggests broad categories of
-        medicines that often come up for similar symptoms—so you have something
-        informed to discuss with your clinician. It does not diagnose you or tell
+        OTC medicines and self-care options that often come up for similar
+        symptoms—so you have something informed to discuss with your clinician or
+        pharmacist. Scripti does not diagnose you, prescribe medicines, or tell
         you what to take.
+      </p>
+      <p className="mt-3 text-xs text-[var(--muted)]">
+        If you choose to shop, you&apos;ll be sent to a separate pharmacy partner
+        site. Scriptids does not sell or dispense drugs.
       </p>
       <div className="mt-8">
         <SymptomSearchBar />

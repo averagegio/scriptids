@@ -51,13 +51,45 @@ export const DRUG_PROFILES: DrugIntelligenceProfile[] = [
   },
 ];
 
+function normalizeSearchText(input: string) {
+  return input
+    .trim()
+    .toLowerCase()
+    .replace(/[’']/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function searchDrugProfiles(query: string): DrugIntelligenceProfile[] {
-  const q = query.trim().toLowerCase();
+  const q = normalizeSearchText(query);
   if (!q) return DRUG_PROFILES;
-  return DRUG_PROFILES.filter(
-    (d) =>
-      d.genericName.includes(q) ||
-      d.therapeuticClass.toLowerCase().includes(q) ||
-      d.brandNames.some((b) => b.toLowerCase().includes(q)),
-  );
+
+  const tokens = q.split(" ").filter(Boolean);
+  const score = (d: DrugIntelligenceProfile) => {
+    const generic = normalizeSearchText(d.genericName);
+    const klass = normalizeSearchText(d.therapeuticClass);
+    const brands = d.brandNames.map(normalizeSearchText);
+    const haystack = [generic, ...brands, klass].join(" ");
+
+    // Require that every token appears somewhere (keeps results relevant).
+    if (!tokens.every((t) => haystack.includes(t))) return -1;
+
+    // Rank: exact generic match > brand match > partial matches.
+    let s = 0;
+    if (generic === q) s += 50;
+    if (brands.includes(q)) s += 40;
+    if (generic.includes(q)) s += 20;
+    if (brands.some((b) => b.includes(q))) s += 15;
+    if (klass.includes(q)) s += 5;
+    // Tie-break: more report volume slightly higher.
+    s += Math.min(10, Math.floor(d.totalSignals / 2000));
+    return s;
+  };
+
+  return [...DRUG_PROFILES]
+    .map((d) => ({ d, s: score(d) }))
+    .filter((x) => x.s >= 0)
+    .sort((a, b) => b.s - a.s)
+    .map((x) => x.d);
 }

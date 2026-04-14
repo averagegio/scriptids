@@ -7,9 +7,10 @@ import { createPortal } from "react-dom";
 const NAV = [
   { href: "/", label: "Home" },
   { href: "/chat", label: "Scripti" },
-  { href: "/prior-auth", label: "PA predictor" },
+  { href: "/prior-auth", label: "Prior auth prediction" },
   { href: "/intelligence", label: "Drug intelligence" },
   { href: "/pricing", label: "Pricing" },
+  { href: "/contact", label: "Contact" },
 ] as const;
 
 const SIDEBAR_EXTRA = [{ href: "/api-reference", label: "API" }] as const;

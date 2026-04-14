@@ -16,7 +16,8 @@ export default function ApiReferencePage() {
       </h1>
       <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
         If you are connecting your own app or dashboard, these are the machine
-        endpoints behind Scripti, the PA predictor, drug intelligence, sign-in,
+        endpoints behind Scripti, prior authorization prediction, drug
+        intelligence, sign-in,
         and pricing. Each response includes a small{" "}
         <code className="rounded bg-[var(--muted-bg)] px-1 font-mono text-xs">
           _links
@@ -32,9 +33,10 @@ export default function ApiReferencePage() {
           </span>
         </li>
         <li className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
-          <span className="font-medium">PA predictor</span>
+          <span className="font-medium">Prior authorization prediction</span>
           <span className="mt-1 block text-[var(--muted)]">
-            Send drug and insurance details; get an approval estimate.
+            Send prescription and coverage details; get a prior authorization
+            estimate.
           </span>
         </li>
         <li className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3">

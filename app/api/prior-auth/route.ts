@@ -1,5 +1,6 @@
 import { withApiLinks } from "@/lib/api-meta";
 import { predictPriorAuth } from "@/lib/mock-pa";
+import { optimizePriorAuth } from "@/lib/pa-optimizer";
 import type { InsuranceType, PriorAuthInput } from "@/lib/types";
 
 function isInsurance(x: unknown): x is InsuranceType {
@@ -43,5 +44,6 @@ export async function POST(request: Request) {
   };
 
   const prediction = predictPriorAuth(input);
-  return Response.json(withApiLinks({ prediction }));
+  const optimization = optimizePriorAuth(input);
+  return Response.json(withApiLinks({ prediction, optimization }));
 }

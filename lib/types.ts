@@ -16,6 +16,34 @@ export type PriorAuthPrediction = {
   nextSteps: string[];
 };
 
+export type PriorAuthFormAutofill = {
+  /** Plain-language summary suitable for the "clinical rationale" box. */
+  clinicalRationale: string;
+  /** Documentation checklist tailored to the situation. */
+  documentationChecklist: string[];
+  /** Fields that are commonly requested on plan/UM forms. */
+  fields: {
+    diagnosis?: string;
+    priorTherapiesTried?: string;
+    contraindicationsOrFailures?: string;
+    requestedDrugAndDose?: string;
+  };
+};
+
+export type PriorAuthAlternative = {
+  name: string;
+  type: "generic" | "brand" | "biosimilar" | "therapeutic-alternative";
+  whyItMayHelp: string;
+  questionsToAsk: string[];
+};
+
+export type PriorAuthOptimization = {
+  approvalLikelihoodPct: number;
+  drivers: string[];
+  autofill: PriorAuthFormAutofill;
+  alternatives: PriorAuthAlternative[];
+};
+
 export type SideEffectSignal = {
   term: string;
   reports: number;

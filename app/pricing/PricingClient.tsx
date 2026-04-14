@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { PricingPlan } from "@/lib/pricing-data";
 
@@ -11,9 +11,11 @@ type Payload = {
 };
 
 export function PricingClient() {
+  const router = useRouter();
   const [data, setData] = useState<Payload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pendingPlan, setPendingPlan] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,7 +52,7 @@ export function PricingClient() {
 
   return (
     <div className="space-y-8">
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-4">
         {plans.map((plan) => (
           <article
             key={plan.id}
@@ -89,16 +91,50 @@ export function PricingClient() {
                 </li>
               ))}
             </ul>
-            <Link
-              href="/signup"
-              className={`mt-6 block rounded-xl py-3 text-center text-sm font-semibold ${
+            <button
+              type="button"
+              disabled={pendingPlan !== null}
+              className={`mt-6 block rounded-xl py-3 text-center text-sm font-semibold transition-opacity disabled:cursor-not-allowed disabled:opacity-60 ${
                 plan.featured
                   ? "bg-[var(--accent)] text-white"
                   : "border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)]"
               }`}
+              onClick={async () => {
+                setPendingPlan(plan.id);
+                try {
+                  if (plan.priceMonthlyUsd === 0) {
+                    localStorage.setItem("scriptids_plan", plan.id);
+                    router.push("/chat");
+                    return;
+                  }
+                  if (plan.priceMonthlyUsd === null) {
+                    router.push("/contact");
+                    return;
+                  }
+                  const res = await fetch("/api/checkout", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ planId: plan.id }),
+                  });
+                  const json = (await res.json()) as
+                    | { checkoutUrl?: string; error?: string }
+                    | undefined;
+                  if (!res.ok) throw new Error(json?.error || res.statusText);
+                  localStorage.setItem("scriptids_plan", plan.id);
+                  router.push(json?.checkoutUrl || "/checkout");
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : "Checkout failed");
+                } finally {
+                  setPendingPlan(null);
+                }
+              }}
             >
-              {plan.cta}
-            </Link>
+              {plan.priceMonthlyUsd === 0
+                ? "Choose plan"
+                : pendingPlan === plan.id
+                  ? "Starting checkout…"
+                  : "Choose plan"}
+            </button>
           </article>
         ))}
       </div>

@@ -1,10 +1,13 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useId, useState } from "react";
 import { SymptomMessageBody } from "./SymptomMessageBody";
 
 type Turn = { query: string; reply: string };
+type CartItem = { id: string; name: string; priceUsd: number; quantity: number };
 
 type SymptomSearchBarProps = {
   /** Compact = tighter mascot column + padding for footer */
@@ -12,15 +15,60 @@ type SymptomSearchBarProps = {
   className?: string;
 };
 
+function suggestOtcCart(query: string): CartItem[] {
+  const q = query.toLowerCase();
+  const items: CartItem[] = [];
+
+  const add = (id: string, name: string, priceUsd: number) => {
+    if (items.some((it) => it.id === id)) return;
+    items.push({ id, name, priceUsd, quantity: 1 });
+  };
+
+  if (/(allergy|sneeze|sneezing|itchy|watery|runny nose)/.test(q)) {
+    add("cetirizine", "Cetirizine (24‑hour allergy relief)", 12.99);
+    add("fluticasone", "Fluticasone nasal spray", 18.49);
+  }
+  if (/(cough|congestion|cold|sinus)/.test(q)) {
+    add("dextromethorphan", "Dextromethorphan cough relief", 9.49);
+    add("guaifenesin", "Guaifenesin chest congestion relief", 11.99);
+  }
+  if (/(headache|fever|pain|sore)/.test(q)) {
+    add("acetaminophen", "Acetaminophen pain relief", 8.99);
+    add("ibuprofen", "Ibuprofen pain relief", 9.99);
+  }
+  if (/(heartburn|reflux|indigestion)/.test(q)) {
+    add("famotidine", "Famotidine heartburn relief", 13.99);
+  }
+
+  if (items.length === 0) {
+    add("electrolytes", "Electrolyte drink mix", 7.99);
+    add("thermometer", "Digital thermometer", 10.99);
+  }
+
+  return items.slice(0, 3);
+}
+
 export function SymptomSearchBar({
   variant = "default",
   className = "",
 }: SymptomSearchBarProps) {
+  const router = useRouter();
   const inputId = useId();
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastTurn, setLastTurn] = useState<Turn | null>(null);
+  const [shopPending, setShopPending] = useState(false);
+  const [rxPending, setRxPending] = useState(false);
+  const [couponCopied, setCouponCopied] = useState(false);
+
+  const confirmExternal = useCallback((kind: "otc" | "rx") => {
+    const msg =
+      kind === "otc"
+        ? "You are leaving Scriptids.\n\nScripti suggestions are educational and not medical advice. Purchases and fulfillment happen on a separate pharmacy partner site.\n\nContinue?"
+        : "You are leaving Scriptids.\n\nScriptids does not provide medical care or prescriptions. Any prescribing (if available) is provided by the partner's licensed clinicians, and dispensing is handled by the partner.\n\nContinue?";
+    return window.confirm(msg);
+  }, []);
 
   const submit = useCallback(async () => {
     const q = input.trim();
@@ -147,11 +195,144 @@ export function SymptomSearchBar({
           <p className="mt-1 text-sm text-[var(--foreground)]">{lastTurn.query}</p>
           <div className="mt-3 border-t border-[var(--border)] pt-3">
             <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
-              Scripti suggestions (educational)
+              Scripti suggestions (OTC education only)
             </p>
             <div className="mt-2 text-sm leading-relaxed text-[var(--foreground)]">
               <SymptomMessageBody content={lastTurn.reply} isUser={false} />
             </div>
+          </div>
+
+          <div className="mt-4 border-t border-[var(--border)] pt-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
+              Buy OTC meds (pharmacy partner)
+            </p>
+            <p className="mt-1 text-sm text-[var(--muted)]">
+              Scripti can suggest OTC categories. Purchases happen with a licensed
+              pharmacy partner.
+            </p>
+            <p className="mt-2 text-xs text-[var(--muted)]">
+              Scriptids does not sell or dispense drugs and does not provide medical
+              advice.
+            </p>
+
+            <div className="mt-3 space-y-2">
+              {suggestOtcCart(lastTurn.query).map((it) => (
+                <div
+                  key={it.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2"
+                >
+                  <span className="min-w-0 text-sm text-[var(--foreground)]">
+                    {it.name}
+                  </span>
+                  <span className="shrink-0 text-sm font-semibold text-[var(--foreground)]">
+                    ${it.priceUsd.toFixed(2)}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                disabled={shopPending}
+                className="rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={async () => {
+                  if (!confirmExternal("otc")) return;
+                  setShopPending(true);
+                  setError(null);
+                  setCouponCopied(false);
+                  try {
+                    const planId =
+                      typeof window !== "undefined"
+                        ? localStorage.getItem("scriptids_plan") || ""
+                        : "";
+                    const res = await fetch("/api/pharmacy/referral", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        kind: "otc",
+                        planId: planId || "free",
+                        query: lastTurn.query,
+                      }),
+                    });
+                    const json = (await res.json()) as { url?: string; coupon?: string; error?: string };
+                    if (!res.ok) throw new Error(json.error || res.statusText);
+                    if (json.coupon) {
+                      // Keep it visible even if partner ignores the query param.
+                      navigator.clipboard
+                        ?.writeText(json.coupon)
+                        .then(() => setCouponCopied(true))
+                        .catch(() => {});
+                    }
+                    const url = json.url || "";
+                    if (!url) throw new Error("Missing partner URL");
+                    window.open(url, "_blank", "noopener,noreferrer");
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : "Checkout failed");
+                  } finally {
+                    setShopPending(false);
+                  }
+                }}
+              >
+                {shopPending ? "Opening partner…" : "Shop now"}
+              </button>
+              <button
+                type="button"
+                disabled={rxPending}
+                className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] transition-opacity hover:bg-[var(--muted-bg)] disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={async () => {
+                  const planId =
+                    typeof window !== "undefined"
+                      ? localStorage.getItem("scriptids_plan") || ""
+                      : "";
+                  const hasPlus = planId === "scripti-plus" || planId === "pro" || planId === "enterprise";
+                  if (!hasPlus) {
+                    router.push("/pricing");
+                    return;
+                  }
+                  if (!confirmExternal("rx")) return;
+                  setRxPending(true);
+                  setError(null);
+                  try {
+                    const res = await fetch("/api/pharmacy/referral", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        kind: "rx",
+                        planId,
+                        query: lastTurn.query,
+                      }),
+                    });
+                    const json = (await res.json()) as { url?: string; error?: string };
+                    if (!res.ok) throw new Error(json.error || res.statusText);
+                    const url = json.url || "";
+                    if (!url) throw new Error("Missing partner URL");
+                    window.open(url, "_blank", "noopener,noreferrer");
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : "Could not open partner");
+                  } finally {
+                    setRxPending(false);
+                  }
+                }}
+              >
+                {rxPending ? "Opening…" : "Connect for Rx (Plus)"}
+              </button>
+              <Link
+                href="/pricing"
+                className="text-sm font-semibold text-[var(--accent)] hover:underline"
+              >
+                View pricing
+              </Link>
+              <span className="text-xs text-[var(--muted)]">
+                Rx connection requires Scripti Plus.
+              </span>
+            </div>
+
+            {couponCopied && (
+              <p className="mt-2 text-xs text-[var(--muted)]">
+                Coupon copied to clipboard (if your partner supports it).
+              </p>
+            )}
           </div>
         </div>
       )}

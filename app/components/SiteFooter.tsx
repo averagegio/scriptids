@@ -5,12 +5,18 @@ import { FooterChatbot } from "./FooterChatbot";
 const FOOTER_NAV = [
   { href: "/", label: "Home" },
   { href: "/chat", label: "Scripti" },
-  { href: "/prior-auth", label: "PA predictor" },
+  { href: "/prior-auth", label: "Prior auth prediction" },
   { href: "/intelligence", label: "Drug intelligence" },
   { href: "/pricing", label: "Pricing" },
   { href: "/api-reference", label: "API" },
+  { href: "/contact", label: "Contact" },
   { href: "/login", label: "Log in" },
   { href: "/signup", label: "Sign up" },
+] as const;
+
+const FOOTER_LEGAL = [
+  { href: "/legal/privacy", label: "Privacy" },
+  { href: "/legal/terms", label: "Terms" },
 ] as const;
 
 export function SiteFooter() {
@@ -45,6 +51,17 @@ export function SiteFooter() {
             ))}
           </nav>
         </div>
+
+        <nav
+          className="mt-6 flex flex-wrap gap-x-5 gap-y-1 border-t border-[var(--border)] pt-6 text-xs text-[var(--muted)]"
+          aria-label="Legal"
+        >
+          {FOOTER_LEGAL.map(({ href, label }) => (
+            <Link key={href} href={href} className="hover:text-[var(--foreground)]">
+              {label}
+            </Link>
+          ))}
+        </nav>
 
         <div className="mt-10 rounded-2xl border border-[var(--border)] bg-[var(--background)] p-4 sm:p-5">
           <FooterChatbot />

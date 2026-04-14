@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import type { InsuranceType, PriorAuthPrediction } from "@/lib/types";
+import type { InsuranceType, PriorAuthOptimization, PriorAuthPrediction } from "@/lib/types";
 
 const INSURANCE: { value: InsuranceType; label: string }[] = [
   { value: "commercial", label: "Commercial" },
@@ -16,6 +16,7 @@ export function PriorAuthForm() {
   const [triedFirstLine, setTriedFirstLine] = useState(true);
 
   const [result, setResult] = useState<PriorAuthPrediction | null>(null);
+  const [optimization, setOptimization] = useState<PriorAuthOptimization | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,11 +36,13 @@ export function PriorAuthForm() {
       });
       const data = (await res.json()) as {
         prediction?: PriorAuthPrediction;
+        optimization?: PriorAuthOptimization;
         error?: string;
       };
       if (!res.ok) throw new Error(data.error || res.statusText);
       if (!data.prediction) throw new Error("Missing prediction");
       setResult(data.prediction);
+      setOptimization(data.optimization ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -54,12 +57,13 @@ export function PriorAuthForm() {
           Tell us about the prescription
         </h2>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Adjust the fields, then run the predictor. Results are estimates based
-          on typical patterns—not a guarantee from your insurer.
+          Enter what&apos;s on the prescription (or what your doctor plans to
+          prescribe), then run the prediction. Results are estimates—not a
+          guarantee from your insurer.
         </p>
 
         <label className="mt-6 block text-sm font-medium text-[var(--foreground)]">
-          Medication name
+          Medication on the prescription
           <input
             className="mt-1.5 w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm outline-none ring-[var(--accent)] focus:ring-2"
             value={medication}
@@ -69,12 +73,12 @@ export function PriorAuthForm() {
         </label>
 
         <label className="mt-4 block text-sm font-medium text-[var(--foreground)]">
-          Condition or diagnosis (optional)
+          What the prescription is for (optional)
           <input
             className="mt-1.5 w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm outline-none ring-[var(--accent)] focus:ring-2"
             value={indication}
             onChange={(e) => setIndication(e.target.value)}
-            placeholder="What it’s for"
+            placeholder="Condition or reason your prescriber noted"
           />
         </label>
 
@@ -113,7 +117,8 @@ export function PriorAuthForm() {
             onChange={(e) => setTriedFirstLine(e.target.checked)}
           />
           <span>
-            We already tried lower-cost or first-choice options when appropriate
+            My prescriber already tried lower-cost options before this
+            prescription, when that was appropriate
           </span>
         </label>
 
@@ -123,7 +128,7 @@ export function PriorAuthForm() {
           disabled={pending}
           className="mt-6 w-full rounded-xl bg-[var(--accent)] py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-50 sm:w-auto sm:px-8"
         >
-          {pending ? "Working…" : "Run predictor"}
+          {pending ? "Working…" : "Run prior authorization prediction"}
         </button>
         {error && (
           <p className="mt-3 text-sm text-[var(--danger)]">{error}</p>
@@ -149,7 +154,7 @@ export function PriorAuthForm() {
             </span>
           ) : (
             <span className="text-xs text-[var(--muted)]">
-              Run the predictor to see an estimate
+              Run the prediction to see an estimate
             </span>
           )}
         </div>
@@ -166,6 +171,116 @@ export function PriorAuthForm() {
             <p className="mt-4 text-sm leading-relaxed text-[var(--foreground)]">
               {result.summary}
             </p>
+
+            {optimization && (
+              <div className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--background)] p-5">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <h3 className="text-sm font-semibold text-[var(--foreground)]">
+                    Prior auth form optimizer
+                  </h3>
+                  <p className="text-sm text-[var(--muted)]">
+                    Estimated approval likelihood:{" "}
+                    <strong className="text-[var(--foreground)]">
+                      {optimization.approvalLikelihoodPct}%
+                    </strong>
+                  </p>
+                </div>
+
+                <div className="mt-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+                    Why we think that
+                  </p>
+                  <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-[var(--foreground)]">
+                    {optimization.drivers.map((d) => (
+                      <li key={d}>{d}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="mt-5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+                    Auto-fill (copy/paste)
+                  </p>
+                  <div className="mt-2 space-y-3">
+                    <div>
+                      <p className="text-xs font-medium text-[var(--muted)]">
+                        Clinical rationale
+                      </p>
+                      <div className="mt-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-sm text-[var(--foreground)]">
+                        {optimization.autofill.clinicalRationale}
+                      </div>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3">
+                        <p className="text-xs font-medium text-[var(--muted)]">
+                          Diagnosis
+                        </p>
+                        <p className="mt-1 text-sm text-[var(--foreground)]">
+                          {optimization.autofill.fields.diagnosis || "—"}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3">
+                        <p className="text-xs font-medium text-[var(--muted)]">
+                          Requested drug &amp; dose
+                        </p>
+                        <p className="mt-1 text-sm text-[var(--foreground)]">
+                          {optimization.autofill.fields.requestedDrugAndDose || "—"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3">
+                        <p className="text-xs font-medium text-[var(--muted)]">
+                          Prior therapies tried
+                        </p>
+                        <p className="mt-1 text-sm text-[var(--foreground)]">
+                          {optimization.autofill.fields.priorTherapiesTried || "—"}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3">
+                        <p className="text-xs font-medium text-[var(--muted)]">
+                          Contraindications / failures
+                        </p>
+                        <p className="mt-1 text-sm text-[var(--foreground)]">
+                          {optimization.autofill.fields.contraindicationsOrFailures || "—"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+                    Alternatives to ask about
+                  </p>
+                  <div className="mt-2 grid gap-3">
+                    {optimization.alternatives.map((a) => (
+                      <div
+                        key={a.name}
+                        className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4"
+                      >
+                        <div className="flex flex-wrap items-baseline justify-between gap-2">
+                          <p className="text-sm font-semibold text-[var(--foreground)]">
+                            {a.name}
+                          </p>
+                          <span className="rounded-full border border-[var(--border)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--muted)]">
+                            {a.type.replaceAll("-", " ")}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-sm text-[var(--muted)]">
+                          {a.whyItMayHelp}
+                        </p>
+                        <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-[var(--foreground)]">
+                          {a.questionsToAsk.map((q) => (
+                            <li key={q}>{q}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="mt-6">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
@@ -201,7 +316,10 @@ export function PriorAuthForm() {
           </>
         ) : (
           <p className="mt-6 text-sm text-[var(--muted)]">
-            Tap <strong className="text-[var(--foreground)]">Run predictor</strong>{" "}
+            Tap{" "}
+            <strong className="text-[var(--foreground)]">
+              Run prior authorization prediction
+            </strong>{" "}
             after filling in the form.
           </p>
         )}
