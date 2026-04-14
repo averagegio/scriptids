@@ -8,7 +8,7 @@ export type PricingPlan = {
   featured?: boolean;
 };
 
-export const PRICING_PLANS: PricingPlan[] = [
+export const CONSUMER_PLANS: PricingPlan[] = [
   {
     id: "free",
     name: "Explorer",
@@ -61,16 +61,50 @@ export const PRICING_PLANS: PricingPlan[] = [
     ],
     cta: "Choose plan",
   },
+];
+
+export const ORGANIZATION_PLANS: PricingPlan[] = [
   {
-    id: "enterprise",
-    name: "Organization",
-    priceMonthlyUsd: null,
-    description: "For clinics, plans, and companies that need custom setup and support.",
+    id: "clinic-starter",
+    name: "Clinic Starter",
+    priceMonthlyUsd: 199,
+    description:
+      "SaaS for small clinics: PA workflow tools, staff training templates, and predictable per-case fees.",
     highlights: [
-      "Private or dedicated environment options",
-      "Custom reporting and onboarding",
-      "Agreement-based support hours",
+      "Prior auth prediction + optimizer for staff",
+      "Per prior authorization case fee: $2–$5 (contracted volume)",
+      "Email support + onboarding checklist",
+    ],
+    cta: "Request contract",
+  },
+  {
+    id: "clinic-growth",
+    name: "Clinic Growth",
+    priceMonthlyUsd: 499,
+    description:
+      "For growing practices with higher PA volume and more locations.",
+    highlights: [
+      "Everything in Clinic Starter",
+      "Per prior authorization case fee: $3–$7 (volume tier)",
+      "Quarterly utilization summary (non-PHI)",
+    ],
+    cta: "Request contract",
+    featured: true,
+  },
+  {
+    id: "clinic-enterprise",
+    name: "Clinic Enterprise",
+    priceMonthlyUsd: null,
+    description:
+      "Custom deployment, integrations, and governance for larger clinic groups.",
+    highlights: [
+      "Dedicated rollout + security review support",
+      "Per prior authorization case fee: $5–$10 (enterprise tier)",
+      "Custom reporting and agreement-based support hours",
     ],
     cta: "Talk to us",
   },
 ];
+
+/** Back-compat: combined list for older clients. */
+export const PRICING_PLANS: PricingPlan[] = [...CONSUMER_PLANS, ...ORGANIZATION_PLANS];

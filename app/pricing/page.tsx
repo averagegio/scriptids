@@ -6,7 +6,7 @@ import { PricingClient } from "./PricingClient";
 export const metadata: Metadata = {
   title: "Pricing",
   description:
-    "Simple plans for Scriptids—Scripti, prior authorization prediction, and drug intelligence.",
+    "Consumer plans for Scripti and prior authorization tools, plus clinic SaaS pricing.",
 };
 
 export default function PricingPage() {
@@ -17,8 +17,9 @@ export default function PricingPage() {
         Pricing
       </h1>
       <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--muted)]">
-        Choose a level that matches how you use Scriptids. Organization pricing
-        is tailored to your team.
+        Consumer plans cover Scripti, prior authorization tools, and drug
+        intelligence. Clinic SaaS plans are priced separately and usually include
+        a monthly platform fee plus a per prior authorization case fee.
       </p>
       <div className="mt-10">
         <PricingClient />
