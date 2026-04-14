@@ -14,6 +14,18 @@ export type ScriptiResponse = {
 export async function runScripti(userText: string): Promise<ScriptiResponse> {
   const agent = analyzeScriptiInput(userText);
 
+  const hasTavily = Boolean(process.env.TAVILY_API_KEY);
+  // Prefer Tavily when configured (explicit customer choice).
+  // This keeps "real-time" behavior even if AI Gateway is also configured.
+  if (hasTavily && process.env.OPENAI_API_KEY) {
+    const sources = await tavilySearch(userText);
+    const llm = await answerWithOpenAI({ userText, sources });
+    const reply =
+      llm.answerMarkdown +
+      "\n\n---\n\n**Not medical advice.** Scriptids cannot diagnose or prescribe. Always confirm safety, interactions, and dosing with a licensed clinician or pharmacist.";
+    return { reply, agent, sources: llm.sources, mode: "web" };
+  }
+
   const hasGatewayAuth = Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN);
   if (hasGatewayAuth) {
     const gw = await answerWithGatewayAndPerplexity({ userText });
@@ -32,18 +44,11 @@ export async function runScripti(userText: string): Promise<ScriptiResponse> {
     };
   }
 
-  const hasParallel = Boolean(process.env.PARALLEL_API_KEY);
-  const sources = hasParallel ? await tavilySearch(userText) : [];
-  const llm = await answerWithOpenAI({ userText, sources });
+  const llm = await answerWithOpenAI({ userText, sources: [] });
   const reply =
     llm.answerMarkdown +
     "\n\n---\n\n**Not medical advice.** Scriptids cannot diagnose or prescribe. Always confirm safety, interactions, and dosing with a licensed clinician or pharmacist.";
 
-  return {
-    reply,
-    agent,
-    sources: llm.sources,
-    mode: hasParallel ? "web" : "fallback",
-  };
+  return { reply, agent, sources: llm.sources, mode: "fallback" };
 }
 
