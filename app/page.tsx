@@ -27,9 +27,9 @@ export default function Home() {
           </div>
 
           <p className="mt-5 max-w-2xl text-sm text-[var(--muted)]">
-            Want full features?{" "}
+            Want more features?{" "}
             <Link href="/pricing" className="font-semibold text-[var(--accent)] hover:underline">
-              View pricing
+              Try Scripti Plus
             </Link>
             .
           </p>
@@ -105,16 +105,36 @@ export default function Home() {
             <LeadCapture />
           </div>
 
-          <p className="mt-8 text-sm text-[var(--muted)]">
-            Already exploring for a team?{" "}
-            <Link
-              href="/contact"
-              className="font-medium text-[var(--accent)] hover:underline"
-            >
-              Contact us about partnerships
-            </Link>
-            .
-          </p>
+          <div className="mt-8 max-w-2xl rounded-2xl border border-[var(--border)] bg-[var(--background)] p-5 sm:p-6">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+              For clinics
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-[var(--foreground)]">
+              Reduce prior authorization back-and-forth with copy/paste
+              templates, likelihood signals, and alternative suggestions. SaaS
+              plans are separate from consumer pricing.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Link
+                href="/contact?topic=clinic-saas"
+                className="inline-flex items-center justify-center rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white"
+              >
+                Request a clinic pilot
+              </Link>
+              <Link
+                href="/pricing"
+                className="inline-flex items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--muted-bg)]"
+              >
+                See pricing
+              </Link>
+              <Link
+                href="/contact"
+                className="inline-flex items-center justify-center rounded-xl px-2 py-2 text-sm font-semibold text-[var(--accent)] hover:underline"
+              >
+                Partnerships →
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 

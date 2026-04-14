@@ -124,9 +124,11 @@ export function PricingClient() {
     );
   }
 
-  const consumerPlans = data?.consumerPlans?.length
-    ? data.consumerPlans
-    : (data?.plans ?? []).filter((p) => !p.id.startsWith("clinic-"));
+  const consumerPlans = (
+    data?.consumerPlans?.length
+      ? data.consumerPlans
+      : (data?.plans ?? []).filter((p) => !p.id.startsWith("clinic-"))
+  ).filter((p) => p.priceMonthlyUsd !== 0);
   const organizationPlans = data?.organizationPlans?.length
     ? data.organizationPlans
     : (data?.plans ?? []).filter((p) => p.id.startsWith("clinic-")).length
@@ -186,6 +188,9 @@ export function PricingClient() {
             Scripti focuses on OTC education and routing. Affiliate revenue comes
             from general OTC categories (allergy, cold/flu, pain, GI, etc.) when
             users choose to shop on a licensed pharmacy partner site.
+          </p>
+          <p className="mt-2 text-sm text-[var(--muted)]">
+            Explorer is free by default—no checkout needed.
           </p>
         </div>
         <PlanGrid

@@ -1,5 +1,5 @@
 import { withApiLinks } from "@/lib/api-meta";
-import { buildSymptomAssistantReply } from "@/lib/symptom-agent";
+import { analyzeScriptiInput, buildSymptomAssistantReply } from "@/lib/symptom-agent";
 
 type ChatMessage = { role: "user" | "assistant" | "system"; content: string };
 
@@ -31,5 +31,6 @@ export async function POST(request: Request) {
   }
 
   const reply = buildSymptomAssistantReply(lastUser.content);
-  return Response.json(withApiLinks({ reply }));
+  const agent = analyzeScriptiInput(lastUser.content);
+  return Response.json(withApiLinks({ reply, agent }));
 }

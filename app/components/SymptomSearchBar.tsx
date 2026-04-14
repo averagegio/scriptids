@@ -3,11 +3,54 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useId, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { SymptomMessageBody } from "./SymptomMessageBody";
 
 type Turn = { query: string; reply: string };
 type CartItem = { id: string; name: string; priceUsd: number; quantity: number };
+type AgentTool = { label: string; href: string; why: string };
+type AgentMeta = {
+  intents?: string[];
+  matchedKeywords?: string[];
+  recommendedTools?: AgentTool[];
+  safety?: { urgent?: boolean; message?: string };
+};
+
+type SpeechRecognitionLike = {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  onresult: ((event: any) => void) | null;
+  onerror: ((event: any) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+function MicIcon({ muted }: { muted?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      aria-hidden="true"
+      className={muted ? "opacity-70" : ""}
+    >
+      <path
+        fill="currentColor"
+        d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0a1 1 0 0 0-2 0a7 7 0 0 0 6 6.92V20H9a1 1 0 0 0 0 2h6a1 1 0 0 0 0-2h-2v-2.08A7 7 0 0 0 19 11a1 1 0 1 0-2 0Z"
+      />
+    </svg>
+  );
+}
+
+function StopIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <path fill="currentColor" d="M7 7h10v10H7z" />
+    </svg>
+  );
+}
 
 type SymptomSearchBarProps = {
   /** Compact = tighter mascot column + padding for footer */
@@ -58,9 +101,15 @@ export function SymptomSearchBar({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastTurn, setLastTurn] = useState<Turn | null>(null);
+  const [agent, setAgent] = useState<AgentMeta | null>(null);
   const [shopPending, setShopPending] = useState(false);
   const [rxPending, setRxPending] = useState(false);
   const [couponCopied, setCouponCopied] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const silenceTimerRef = useRef<number | null>(null);
+  const [voiceLang, setVoiceLang] = useState<"en-US" | "es-ES">("en-US");
 
   const confirmExternal = useCallback((kind: "otc" | "rx") => {
     const msg =
@@ -69,6 +118,76 @@ export function SymptomSearchBar({
         : "You are leaving Scriptids.\n\nScriptids does not provide medical care or prescriptions. Any prescribing (if available) is provided by the partner's licensed clinicians, and dispensing is handled by the partner.\n\nContinue?";
     return window.confirm(msg);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const w = window as any;
+    const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
+    if (!Ctor) {
+      setVoiceSupported(false);
+      return;
+    }
+    setVoiceSupported(true);
+
+    const rec: SpeechRecognitionLike = new Ctor();
+    rec.lang = voiceLang;
+    rec.interimResults = true;
+    rec.continuous = false;
+    rec.onresult = (event: any) => {
+      const results = event?.results;
+      if (!results || !results.length) return;
+      const transcript = Array.from(results)
+        .map((r: any) => r?.[0]?.transcript || "")
+        .join(" ")
+        .trim();
+      if (transcript) setInput(transcript);
+
+      if (silenceTimerRef.current) window.clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = window.setTimeout(() => {
+        try {
+          recognitionRef.current?.stop();
+        } catch {
+          // ignore
+        } finally {
+          setListening(false);
+        }
+      }, 2500);
+    };
+    rec.onerror = () => {
+      setListening(false);
+      setError("Voice input failed. Please type your symptoms instead.");
+    };
+    rec.onend = () => setListening(false);
+
+    recognitionRef.current = rec;
+    return () => {
+      if (silenceTimerRef.current) window.clearTimeout(silenceTimerRef.current);
+      recognitionRef.current?.stop?.();
+      recognitionRef.current = null;
+    };
+  }, [voiceLang]);
+
+  const toggleVoice = useCallback(() => {
+    if (!voiceSupported) {
+      setError("Voice input is not supported in this browser.");
+      return;
+    }
+    const rec = recognitionRef.current;
+    if (!rec) return;
+    setError(null);
+    if (listening) {
+      rec.stop();
+      setListening(false);
+      return;
+    }
+    try {
+      setListening(true);
+      rec.start();
+    } catch {
+      setListening(false);
+      setError("Voice input could not start. Please type your symptoms instead.");
+    }
+  }, [listening, voiceSupported]);
 
   const submit = useCallback(async () => {
     const q = input.trim();
@@ -84,10 +203,15 @@ export function SymptomSearchBar({
           messages: [{ role: "user" as const, content: q }],
         }),
       });
-      const data = (await res.json()) as { reply?: string; error?: string };
+      const data = (await res.json()) as {
+        reply?: string;
+        agent?: AgentMeta;
+        error?: string;
+      };
       if (!res.ok) throw new Error(data.error || res.statusText);
       const reply = data.reply ?? "";
       setLastTurn({ query: q, reply });
+      setAgent(data.agent ?? null);
       setInput("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Request failed");
@@ -165,8 +289,40 @@ export function SymptomSearchBar({
               placeholder="Tell Scripti how you feel (e.g. sneezing, itchy eyes)…"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              disabled={pending}
+              disabled={pending || listening}
             />
+            <div className="flex items-center gap-2 sm:hidden">
+              <select
+                className="h-9 rounded-full border border-[var(--border)] bg-[var(--background)] px-2 text-xs font-semibold text-[var(--foreground)]"
+                aria-label="Voice language"
+                value={voiceLang}
+                onChange={(e) => setVoiceLang(e.target.value as "en-US" | "es-ES")}
+                disabled={pending || listening || !voiceSupported}
+              >
+                <option value="en-US">EN</option>
+                <option value="es-ES">ES</option>
+              </select>
+              <button
+                type="button"
+                onClick={toggleVoice}
+                disabled={pending || !voiceSupported}
+                aria-label={listening ? "Stop voice input" : "Start voice input"}
+                title={
+                  voiceSupported
+                    ? listening
+                      ? "Tap to stop"
+                      : "Tap to speak"
+                    : "Voice input not supported"
+                }
+                className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-opacity disabled:cursor-not-allowed disabled:opacity-40 ${
+                  listening
+                    ? "border-[var(--accent)] bg-[var(--accent-muted)] text-[var(--foreground)]"
+                    : "border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] hover:bg-[var(--muted-bg)]"
+                }`}
+              >
+                {listening ? <StopIcon /> : <MicIcon muted={!voiceSupported} />}
+              </button>
+            </div>
             <button
               type="submit"
               disabled={pending || !input.trim()}
@@ -200,6 +356,55 @@ export function SymptomSearchBar({
             <div className="mt-2 text-sm leading-relaxed text-[var(--foreground)]">
               <SymptomMessageBody content={lastTurn.reply} isUser={false} />
             </div>
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+              Next steps
+            </p>
+            <p className="mt-1 text-sm text-[var(--muted)]">
+              If your situation involves a prescription, insurance, or side
+              effects, these tools can help you plan what to do next.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(agent?.recommendedTools?.length ? agent.recommendedTools : null)?.map(
+                (t) => (
+                  <Link
+                    key={t.href}
+                    href={t.href}
+                    className="rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--muted-bg)]"
+                  >
+                    {t.label}
+                  </Link>
+                ),
+              ) ?? (
+                <>
+                  <Link
+                    href="/prior-auth"
+                    className="rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--muted-bg)]"
+                  >
+                    Prior auth prediction
+                  </Link>
+                  <Link
+                    href="/intelligence"
+                    className="rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--muted-bg)]"
+                  >
+                    Drug intelligence
+                  </Link>
+                </>
+              )}
+              <Link
+                href="/pricing"
+                className="rounded-xl px-3 py-2 text-sm font-semibold text-[var(--accent)] hover:underline"
+              >
+                View pricing →
+              </Link>
+            </div>
+            {agent?.safety?.urgent && agent?.safety?.message && (
+              <p className="mt-3 text-sm font-semibold text-[var(--danger)]">
+                {agent.safety.message}
+              </p>
+            )}
           </div>
 
           <div className="mt-4 border-t border-[var(--border)] pt-4">

@@ -16,6 +16,21 @@ export type SymptomMatch = {
   suggestions: MedicationClassSuggestion[];
 };
 
+export type ScriptiIntent =
+  | "otc"
+  | "prescription"
+  | "prior_auth"
+  | "insurance_cost"
+  | "side_effects"
+  | "emergency";
+
+export type ScriptiAgentMeta = {
+  intents: ScriptiIntent[];
+  matchedKeywords: string[];
+  recommendedTools: { label: string; href: string; why: string }[];
+  safety: { urgent: boolean; message?: string };
+};
+
 const RULES: {
   terms: string[];
   context: string;
@@ -217,12 +232,79 @@ export function matchSymptoms(userText: string): SymptomMatch | null {
   return matched;
 }
 
+const RX_KEYWORDS =
+  /\b(prescription|rx|script|prescribed|my doctor|my prescriber|dose|mg|refill|pharmacy)\b/i;
+const PA_KEYWORDS =
+  /\b(prior authorization|prior auth|pa\b|denied|appeal|step therapy|formulary|coverage criteria|medical necessity)\b/i;
+const INSURANCE_KEYWORDS =
+  /\b(insurance|copay|co-pay|deductible|out[- ]of[- ]pocket|prior approval|claim|pbm|plan)\b/i;
+const SIDE_EFFECT_KEYWORDS =
+  /\b(side effect|side-effect|adverse|reaction|nausea|rash|dizzy|dizziness|fatigue|headache)\b/i;
+const EMERGENCY_KEYWORDS =
+  /\b(chest pain|shortness of breath|trouble breathing|cannot breathe|fainting|passed out|stroke|slurred speech|one-sided|seizure|anaphylaxis|face swelling|throat swelling|suicidal|self-harm)\b/i;
+
+export function analyzeScriptiInput(userText: string): ScriptiAgentMeta {
+  const txt = userText.trim();
+  const matched: string[] = [];
+  const intents = new Set<ScriptiIntent>();
+
+  const add = (intent: ScriptiIntent, keyword: string) => {
+    intents.add(intent);
+    matched.push(keyword);
+  };
+
+  if (EMERGENCY_KEYWORDS.test(txt)) add("emergency", "urgent symptom");
+  if (RX_KEYWORDS.test(txt)) add("prescription", "prescription/Rx");
+  if (PA_KEYWORDS.test(txt)) add("prior_auth", "prior authorization");
+  if (INSURANCE_KEYWORDS.test(txt)) add("insurance_cost", "insurance/cost");
+  if (SIDE_EFFECT_KEYWORDS.test(txt)) add("side_effects", "side effects");
+
+  // Default intent: OTC education (what Scripti is safest at).
+  intents.add("otc");
+
+  const recommendedTools: ScriptiAgentMeta["recommendedTools"] = [];
+  const pushTool = (label: string, href: string, why: string) => {
+    if (recommendedTools.some((t) => t.href === href)) return;
+    recommendedTools.push({ label, href, why });
+  };
+
+  if (intents.has("prior_auth") || intents.has("insurance_cost") || intents.has("prescription")) {
+    pushTool(
+      "Prior auth prediction",
+      "/prior-auth",
+      "If insurance coverage might require extra approval or paperwork, this helps you plan what’s usually requested.",
+    );
+  }
+  if (intents.has("side_effects") || intents.has("prescription")) {
+    pushTool(
+      "Drug intelligence",
+      "/intelligence",
+      "If you’re comparing side-effect trends for a drug name, this summarizes report patterns for learning.",
+    );
+  }
+
+  const urgent = intents.has("emergency");
+  return {
+    intents: [...intents],
+    matchedKeywords: [...new Set(matched)],
+    recommendedTools,
+    safety: urgent
+      ? {
+          urgent: true,
+          message:
+            "If you think this could be an emergency, call your local emergency number now. Scriptids can’t triage emergencies.",
+        }
+      : { urgent: false },
+  };
+}
+
 export function buildSymptomAssistantReply(userText: string): string {
   const trimmed = userText.trim();
   if (!trimmed) {
     return "Describe your main symptoms in plain language (for example: “seasonal allergies with sneezing” or “heartburn after meals”). I will suggest **drug classes** to discuss with a clinician—not a personal diagnosis or prescription.";
   }
 
+  const agent = analyzeScriptiInput(trimmed);
   const match = matchSymptoms(trimmed);
   const disclaimer =
     "**Not medical advice.** Scriptids cannot diagnose or prescribe. For emergencies, call emergency services. Always confirm safety, interactions, and dosing with a licensed prescriber or pharmacist.";
@@ -230,11 +312,21 @@ export function buildSymptomAssistantReply(userText: string): string {
   if (!match) {
     return (
       `I did not recognize specific symptom keywords in your message. Try naming symptoms directly (e.g., headache, cough, heartburn, rash, nausea, allergies).\n\n` +
+      (agent.safety.urgent && agent.safety.message ? `**Urgent:** ${agent.safety.message}\n\n` : "") +
+      (agent.recommendedTools.length
+        ? `**Helpful tools:**\n${agent.recommendedTools
+            .map((t) => `- [${t.label}](${t.href}) — ${t.why}`)
+            .join("\n")}\n\n`
+        : "") +
       `${disclaimer}`
     );
   }
 
   const lines: string[] = [];
+  if (agent.safety.urgent && agent.safety.message) {
+    lines.push(`**Urgent:** ${agent.safety.message}`);
+    lines.push("");
+  }
   lines.push(
     `From what you shared, I mapped keywords related to **${match.context}** (${match.matchedTerms.slice(0, 5).join(", ")}). Below are **general medication classes** people sometimes discuss with clinicians—this is educational, not individualized care.`,
   );
@@ -245,9 +337,16 @@ export function buildSymptomAssistantReply(userText: string): string {
     if (s.note) lines.push(`  - *Note:* ${s.note}`);
   }
   lines.push("");
-  lines.push(
-    "For prescription coverage steps, try **Prior authorization prediction** in Scriptids; for side-effect trends by drug, open **Drug intelligence**—both are guides, not personal medical decisions.",
-  );
+  if (agent.recommendedTools.length) {
+    lines.push("**Next steps in Scriptids (optional):**");
+    for (const t of agent.recommendedTools) {
+      lines.push(`- [${t.label}](${t.href}) — ${t.why}`);
+    }
+  } else {
+    lines.push(
+      "If you want to explore prescriptions, insurance steps, or side-effect trends, Scriptids has additional tools—these are guides, not personal medical decisions.",
+    );
+  }
   lines.push("");
   lines.push(disclaimer);
   return lines.join("\n");
