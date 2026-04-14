@@ -71,20 +71,60 @@ function suggestOtcCart(query: string): CartItem[] {
     items.push({ id, name, priceUsd, quantity: 1 });
   };
 
-  if (/(allergy|sneeze|sneezing|itchy|watery|runny nose)/.test(q)) {
-    add("cetirizine", "Cetirizine (24‑hour allergy relief)", 12.99);
-    add("fluticasone", "Fluticasone nasal spray", 18.49);
+  // Common symptom buckets (education-only; no dosing).
+  const hasAllergy = /(allergy|hay fever|sneeze|sneezing|itchy|watery|runny nose|postnasal)/.test(q);
+  const hasNasal = /(stuffy|congestion|sinus|sinuses|nasal|runny nose)/.test(q);
+  const hasCough = /(cough|coughing)/.test(q);
+  const hasSoreThroat = /(sore throat|throat pain|scratchy throat)/.test(q);
+  const hasFeverPain = /(headache|migraine|fever|chills|body ache|aches|pain|sore|cramps)/.test(q);
+  const hasHeartburn = /(heartburn|reflux|indigestion|gerd)/.test(q);
+  const hasNausea = /(nausea|queasy|motion sickness)/.test(q);
+  const hasDiarrhea = /(diarrhea|loose stool)/.test(q);
+  const hasConstipation = /(constipation|hard stool)/.test(q);
+  const hasSkinItch = /(rash|itch|itchy skin|hives|eczema)/.test(q);
+  const hasSleep = /(sleep|insomnia|can't sleep|cant sleep)/.test(q);
+  const hasEye = /(itchy eyes|watery eyes|red eyes)/.test(q);
+
+  if (hasAllergy || hasEye) {
+    add("cetirizine", "Allergy relief (non-drowsy antihistamine)", 12.99);
   }
-  if (/(cough|congestion|cold|sinus)/.test(q)) {
-    add("dextromethorphan", "Dextromethorphan cough relief", 9.49);
-    add("guaifenesin", "Guaifenesin chest congestion relief", 11.99);
+  if (hasNasal) {
+    if (hasAllergy) add("fluticasone", "Nasal spray (allergy-related congestion)", 18.49);
+    add("saline", "Saline nasal spray (non-medicated)", 7.49);
   }
-  if (/(headache|fever|pain|sore)/.test(q)) {
-    add("acetaminophen", "Acetaminophen pain relief", 8.99);
-    add("ibuprofen", "Ibuprofen pain relief", 9.99);
+  if (hasCough) {
+    add("dextromethorphan", "Cough suppressant (for dry cough)", 9.49);
+    add("guaifenesin", "Expectorant (for mucus/chest congestion)", 11.99);
   }
-  if (/(heartburn|reflux|indigestion)/.test(q)) {
-    add("famotidine", "Famotidine heartburn relief", 13.99);
+  if (hasSoreThroat) {
+    add("lozenges", "Throat lozenges (comfort)", 6.49);
+  }
+  if (hasFeverPain) {
+    add("acetaminophen", "Pain/fever relief (acetaminophen)", 8.99);
+    add("ibuprofen", "Pain/inflammation relief (ibuprofen)", 9.99);
+  }
+  if (hasHeartburn) {
+    add("famotidine", "Heartburn relief (H2 blocker)", 13.99);
+    add("antacid", "Antacid chewables (fast relief)", 8.49);
+  }
+  if (hasNausea) {
+    add("ginger", "Ginger chews/tea (comfort)", 7.99);
+    add("oral-rehydration", "Oral rehydration solution", 8.99);
+  }
+  if (hasDiarrhea) {
+    add("oral-rehydration", "Oral rehydration solution", 8.99);
+    add("bismuth", "Stomach relief (bismuth)", 9.49);
+  }
+  if (hasConstipation) {
+    add("fiber", "Fiber supplement", 12.49);
+    add("stool-softener", "Stool softener", 9.99);
+  }
+  if (hasSkinItch) {
+    add("hydrocortisone", "Anti-itch cream (hydrocortisone)", 6.99);
+    add("moisturizer", "Fragrance-free moisturizer", 11.99);
+  }
+  if (hasSleep) {
+    add("melatonin", "Sleep support (melatonin)", 9.99);
   }
 
   if (items.length === 0) {
@@ -92,7 +132,8 @@ function suggestOtcCart(query: string): CartItem[] {
     add("thermometer", "Digital thermometer", 10.99);
   }
 
-  return items.slice(0, 3);
+  // Prefer relevance by returning first few added; keep short.
+  return items.slice(0, 4);
 }
 
 export function SymptomSearchBar({
@@ -527,11 +568,11 @@ export function SymptomSearchBar({
 
           <div className="mt-4 border-t border-[var(--border)] pt-4">
             <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
-              Buy OTC meds (pharmacy partner)
+              Shop OTC meds (Scripti Plus)
             </p>
             <p className="mt-1 text-sm text-[var(--muted)]">
-              Scripti can suggest OTC categories. Purchases happen with a licensed
-              pharmacy partner.
+              Scripti Plus members can shop on a separate, licensed pharmacy partner
+              site.
             </p>
             <p className="mt-2 text-xs text-[var(--muted)]">
               Scriptids does not sell or dispense drugs and does not provide medical
@@ -560,7 +601,6 @@ export function SymptomSearchBar({
                 disabled={shopPending}
                 className="rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
                 onClick={async () => {
-                  if (!confirmExternal("otc")) return;
                   setShopPending(true);
                   setError(null);
                   setCouponCopied(false);
@@ -569,16 +609,27 @@ export function SymptomSearchBar({
                       typeof window !== "undefined"
                         ? localStorage.getItem("scriptids_plan") || ""
                         : "";
+                    const hasPlus = planId === "scripti-plus" || planId === "pro" || planId === "enterprise";
+                    if (!hasPlus) {
+                      router.push("/pricing");
+                      return;
+                    }
+                    if (!confirmExternal("otc")) return;
                     const res = await fetch("/api/pharmacy/referral", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({
                         kind: "otc",
-                        planId: planId || "free",
+                        planId,
                         query: lastUserText,
                       }),
                     });
-                    const json = (await res.json()) as { url?: string; coupon?: string; error?: string };
+                    const json = (await res.json()) as {
+                      url?: string;
+                      coupon?: string;
+                      error?: string;
+                      upgradeUrl?: string;
+                    };
                     if (!res.ok) throw new Error(json.error || res.statusText);
                     if (json.coupon) {
                       // Keep it visible even if partner ignores the query param.
@@ -597,7 +648,7 @@ export function SymptomSearchBar({
                   }
                 }}
               >
-                {shopPending ? "Opening partner…" : "Shop now"}
+                {shopPending ? "Opening partner…" : "Shop now (Plus)"}
               </button>
               <button
                 type="button"
@@ -647,7 +698,7 @@ export function SymptomSearchBar({
                 View pricing
               </Link>
               <span className="text-xs text-[var(--muted)]">
-                Rx connection requires Scripti Plus.
+                Shopping + Rx connection require Scripti Plus.
               </span>
             </div>
 
