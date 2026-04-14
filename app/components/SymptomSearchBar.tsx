@@ -6,7 +6,11 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { SymptomMessageBody } from "./SymptomMessageBody";
 
-type Turn = { query: string; reply: string };
+type Turn = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+};
 type CartItem = { id: string; name: string; priceUsd: number; quantity: number };
 type AgentTool = { label: string; href: string; why: string };
 type AgentMeta = {
@@ -100,8 +104,9 @@ export function SymptomSearchBar({
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastTurn, setLastTurn] = useState<Turn | null>(null);
+  const [turns, setTurns] = useState<Turn[]>([]);
   const [agent, setAgent] = useState<AgentMeta | null>(null);
+  const [streaming, setStreaming] = useState(false);
   const [shopPending, setShopPending] = useState(false);
   const [rxPending, setRxPending] = useState(false);
   const [couponCopied, setCouponCopied] = useState(false);
@@ -110,6 +115,7 @@ export function SymptomSearchBar({
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const silenceTimerRef = useRef<number | null>(null);
   const [voiceLang, setVoiceLang] = useState<"en-US" | "es-ES">("en-US");
+  const abortRef = useRef<AbortController | null>(null);
 
   const confirmExternal = useCallback((kind: "otc" | "rx") => {
     const msg =
@@ -189,36 +195,127 @@ export function SymptomSearchBar({
     }
   }, [listening, voiceSupported]);
 
+  const stop = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setStreaming(false);
+    setPending(false);
+  }, []);
+
+  const lastUserText = (() => {
+    for (let i = turns.length - 1; i >= 0; i--) {
+      if (turns[i]?.role === "user") return turns[i]!.content;
+    }
+    return "";
+  })();
+
   const submit = useCallback(async () => {
     const q = input.trim();
-    if (!q || pending) return;
+    if (!q || pending || streaming) return;
 
     setError(null);
     setPending(true);
+    setStreaming(true);
     try {
-      const res = await fetch("/api/chat", {
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      const newUserTurn: Turn = { id: crypto.randomUUID(), role: "user", content: q };
+      const assistantId = crypto.randomUUID();
+      setTurns((t) => [
+        ...t,
+        newUserTurn,
+        { id: assistantId, role: "assistant", content: "" },
+      ]);
+      setInput("");
+
+      const messages = [...turns, newUserTurn].map((t) => ({
+        role: t.role,
+        content: t.content,
+      }));
+
+      const res = await fetch("/api/chat/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: [{ role: "user" as const, content: q }],
+          messages,
         }),
+        signal: controller.signal,
       });
-      const data = (await res.json()) as {
-        reply?: string;
-        agent?: AgentMeta;
-        error?: string;
+      if (!res.ok) {
+        let err = res.statusText;
+        try {
+          const j = (await res.json()) as any;
+          err = j?.error || j?.message || err;
+        } catch {
+          // ignore
+        }
+        throw new Error(err);
+      }
+      if (!res.body) throw new Error("Missing response stream");
+
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buffer = "";
+
+      const applyDelta = (text: string) => {
+        setTurns((t) =>
+          t.map((turn) =>
+            turn.id === assistantId
+              ? { ...turn, content: (turn.content || "") + text }
+              : turn,
+          ),
+        );
       };
-      if (!res.ok) throw new Error(data.error || res.statusText);
-      const reply = data.reply ?? "";
-      setLastTurn({ query: q, reply });
-      setAgent(data.agent ?? null);
-      setInput("");
+
+      const handleEvent = (event: string, data: any) => {
+        if (event === "delta" && data?.text) applyDelta(String(data.text));
+        if (event === "done") {
+          setAgent((data?.agent as AgentMeta) ?? null);
+        }
+        if (event === "error") {
+          throw new Error(String(data?.error || "Request failed"));
+        }
+      };
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += dec.decode(value, { stream: true });
+
+        while (true) {
+          const idx = buffer.indexOf("\n\n");
+          if (idx === -1) break;
+          const chunk = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + 2);
+
+          // Basic SSE parsing (event/data lines)
+          let event = "message";
+          let dataStr = "";
+          for (const line of chunk.split("\n")) {
+            if (line.startsWith("event:")) event = line.slice(6).trim();
+            if (line.startsWith("data:")) dataStr += line.slice(5).trim();
+          }
+          if (!dataStr) continue;
+          let data: any = null;
+          try {
+            data = JSON.parse(dataStr);
+          } catch {
+            data = { text: dataStr };
+          }
+          handleEvent(event, data);
+        }
+      }
     } catch (e) {
+      // If aborted mid-stream, don't show as an error.
+      if (e instanceof DOMException && e.name === "AbortError") return;
       setError(e instanceof Error ? e.message : "Request failed");
     } finally {
       setPending(false);
+      setStreaming(false);
+      abortRef.current = null;
     }
-  }, [input, pending]);
+  }, [input, pending, streaming, turns]);
 
   const pad = variant === "compact" ? "p-1" : "p-1.5";
   const isCompact = variant === "compact";
@@ -325,7 +422,7 @@ export function SymptomSearchBar({
             </div>
             <button
               type="submit"
-              disabled={pending || !input.trim()}
+              disabled={pending || streaming || !input.trim()}
               className="flex h-9 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
               style={{
                 background: `linear-gradient(135deg, var(--scripti-pink), var(--scripti-cyan))`,
@@ -341,21 +438,42 @@ export function SymptomSearchBar({
         <p className="mt-2 text-sm text-[var(--danger)]">{error}</p>
       )}
 
-      {lastTurn && (
+      {turns.length > 0 && (
         <div
           className={`mt-3 rounded-2xl border border-[var(--border)] bg-[var(--background)] ${isCompact ? "p-3" : "p-4"}`}
         >
-          <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
-            Your search
-          </p>
-          <p className="mt-1 text-sm text-[var(--foreground)]">{lastTurn.query}</p>
-          <div className="mt-3 border-t border-[var(--border)] pt-3">
+          <div className="flex items-center justify-between gap-3">
             <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
-              Scripti suggestions (OTC education only)
+              Conversation
             </p>
-            <div className="mt-2 text-sm leading-relaxed text-[var(--foreground)]">
-              <SymptomMessageBody content={lastTurn.reply} isUser={false} />
-            </div>
+            {streaming && (
+              <button
+                type="button"
+                onClick={stop}
+                className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-semibold text-[var(--foreground)] hover:bg-[var(--muted-bg)]"
+              >
+                <span>Stop</span>
+              </button>
+            )}
+          </div>
+
+          <div className="mt-3 space-y-3">
+            {turns.map((t) => (
+              <div
+                key={t.id}
+                className={`flex ${t.role === "user" ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className={`max-w-[92%] rounded-2xl border px-3 py-2 text-sm leading-relaxed sm:max-w-[80%] ${
+                    t.role === "user"
+                      ? "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)]"
+                      : "border-[var(--border)] bg-[var(--background)] text-[var(--foreground)]"
+                  }`}
+                >
+                  <SymptomMessageBody content={t.content || (t.role === "assistant" && streaming ? "…" : "")} isUser={t.role === "user"} />
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
@@ -421,7 +539,7 @@ export function SymptomSearchBar({
             </p>
 
             <div className="mt-3 space-y-2">
-              {suggestOtcCart(lastTurn.query).map((it) => (
+              {suggestOtcCart(lastUserText).map((it) => (
                 <div
                   key={it.id}
                   className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2"
@@ -457,7 +575,7 @@ export function SymptomSearchBar({
                       body: JSON.stringify({
                         kind: "otc",
                         planId: planId || "free",
-                        query: lastTurn.query,
+                        query: lastUserText,
                       }),
                     });
                     const json = (await res.json()) as { url?: string; coupon?: string; error?: string };
@@ -505,7 +623,7 @@ export function SymptomSearchBar({
                       body: JSON.stringify({
                         kind: "rx",
                         planId,
-                        query: lastTurn.query,
+                        query: lastUserText,
                       }),
                     });
                     const json = (await res.json()) as { url?: string; error?: string };

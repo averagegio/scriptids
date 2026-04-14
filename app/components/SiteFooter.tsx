@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { API_LINKS } from "@/lib/api-meta";
-import { FooterChatbot } from "./FooterChatbot";
+import { SymptomSearchBar } from "./SymptomSearchBar";
 
 const FOOTER_NAV = [
   { href: "/", label: "Home" },
@@ -64,7 +64,7 @@ export function SiteFooter() {
         </nav>
 
         <div className="mt-10 rounded-2xl border border-[var(--border)] bg-[var(--background)] p-4 sm:p-5">
-          <FooterChatbot />
+          <SymptomSearchBar variant="compact" />
         </div>
 
         <p className="mt-8 text-center text-xs text-[var(--muted)]">
