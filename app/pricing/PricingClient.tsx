@@ -155,17 +155,19 @@ export function PricingClient() {
         router.push("/contact");
         return;
       }
-      const res = await fetch("/api/checkout", {
+      const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ planId: plan.id }),
       });
       const json = (await res.json()) as
-        | { checkoutUrl?: string; error?: string }
+        | { url?: string; error?: string }
         | undefined;
       if (!res.ok) throw new Error(json?.error || res.statusText);
       localStorage.setItem("scriptids_plan", plan.id);
-      router.push(json?.checkoutUrl || "/checkout");
+      const url = json?.url;
+      if (!url) throw new Error("Missing Stripe checkout url");
+      window.location.assign(url);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Checkout failed");
     } finally {

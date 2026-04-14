@@ -50,13 +50,14 @@ export const CONSUMER_PLANS: PricingPlan[] = [
   },
   {
     id: "pro",
-    name: "Plus",
+    name: "Complete",
     priceMonthlyUsd: 199,
     description:
-      "Full prior authorization prediction and drug intelligence for you or your team.",
+      "The all-in-one bundle: Scripti Plus + Prior auth Plus + full drug intelligence.",
     highlights: [
-      "Prior auth prediction + optimizer",
-      "Full drug intelligence search",
+      "Includes Scripti Plus partner connections",
+      "Includes Prior auth Plus (optimizer + alternatives)",
+      "Full drug intelligence search (live when available)",
       "Priority email support",
     ],
     cta: "Choose plan",

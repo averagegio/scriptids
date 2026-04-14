@@ -22,6 +22,11 @@ export const metadata: Metadata = {
   },
   description:
     "Plain-language help with medications, insurance approval estimates, and drug side-effect summaries.",
+  icons: {
+    icon: [{ url: "/icon.png" }],
+    shortcut: [{ url: "/icon.png" }],
+    apple: [{ url: "/icon.png" }],
+  },
 };
 
 export default function RootLayout({
