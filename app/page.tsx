@@ -5,8 +5,59 @@ import { SymptomSearchBar } from "./components/SymptomSearchBar";
 export default function Home() {
   return (
     <div className="flex flex-1 flex-col">
-      <section className="border-b border-[var(--border)] bg-[var(--surface)]">
-        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
+      <section className="relative border-b border-[var(--border)] bg-[var(--surface)]">
+        {/* Full-bleed animated “bleed” across the top half of the page (homepage only) */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[52vh] max-h-[620px] min-h-[320px] overflow-hidden">
+          <div
+            className="absolute inset-0 opacity-70 motion-reduce:hidden"
+            style={{
+              backgroundImage:
+                "url(/scriptids3-ezgif.com-video-to-gif-converter.gif)",
+              backgroundSize: "cover",
+              // Offset toward the hamburger-menu side (right) so the focal point isn't centered.
+              backgroundPosition: "78% 18%",
+              backgroundRepeat: "no-repeat",
+            }}
+            aria-hidden="true"
+          />
+
+          <video
+            className="absolute inset-0 h-full w-full object-cover opacity-50 motion-reduce:hidden"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            aria-hidden="true"
+            style={{ objectPosition: "78% 18%" }}
+          >
+            <source src="/bg-loop.webm" type="video/webm" />
+            <source src="/bg-loop.mp4" type="video/mp4" />
+          </video>
+
+          {/* Soft fade into the normal surface so the rest of the page stays clean */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "linear-gradient(180deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0) 30%, color-mix(in srgb, var(--surface) 78%, transparent) 72%, var(--surface) 100%)",
+            }}
+            aria-hidden="true"
+          />
+
+          {/* Gentle grain */}
+          <div
+            className="absolute inset-0 opacity-[0.05] mix-blend-multiply"
+            style={{
+              backgroundImage:
+                'url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2772%27 height=%2772%27%3E%3Cfilter id=%27n%27 x=%270%27 y=%270%27 width=%27100%25%27 height=%27100%25%27%3E%3CfeTurbulence type=%27fractalNoise%27 baseFrequency=%270.85%27 numOctaves=%271%27 stitchTiles=%27stitch%27/%3E%3C/filter%3E%3Crect width=%2772%27 height=%2772%27 filter=%27url(%23n)%27 opacity=%270.6%27/%3E%3C/svg%3E")',
+              backgroundRepeat: "repeat",
+            }}
+            aria-hidden="true"
+          />
+        </div>
+
+        <div className="relative mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
           <p className="text-sm font-medium text-[var(--accent)]">
             Prescriptions, explained—without the runaround
           </p>
