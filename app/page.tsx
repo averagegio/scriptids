@@ -21,20 +21,6 @@ export default function Home() {
             aria-hidden="true"
           />
 
-          <video
-            className="absolute inset-0 h-full w-full object-cover opacity-50 motion-reduce:hidden"
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="metadata"
-            aria-hidden="true"
-            style={{ objectPosition: "78% 18%" }}
-          >
-            <source src="/bg-loop.webm" type="video/webm" />
-            <source src="/bg-loop.mp4" type="video/mp4" />
-          </video>
-
           {/* Soft fade into the normal surface so the rest of the page stays clean */}
           <div
             className="absolute inset-0"
