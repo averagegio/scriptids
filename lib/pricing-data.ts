@@ -76,7 +76,7 @@ export const ORGANIZATION_PLANS: PricingPlan[] = [
       "Per prior authorization case fee: $2–$5 (contracted volume)",
       "Email support + onboarding checklist",
     ],
-    cta: "Request contract",
+    cta: "Subscribe",
   },
   {
     id: "clinic-growth",
@@ -89,7 +89,7 @@ export const ORGANIZATION_PLANS: PricingPlan[] = [
       "Per prior authorization case fee: $3–$7 (volume tier)",
       "Quarterly utilization summary (non-PHI)",
     ],
-    cta: "Request contract",
+    cta: "Subscribe",
     featured: true,
   },
   {

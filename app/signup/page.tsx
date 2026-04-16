@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { BackNav } from "../components/BackNav";
 import { SignupForm } from "./SignupForm";
 
@@ -19,7 +20,11 @@ export default function SignupPage() {
         strong password you do not reuse on other sites.
       </p>
       <div className="mt-8">
-        <SignupForm />
+        <Suspense
+          fallback={<p className="text-sm text-[var(--muted)]">Loading…</p>}
+        >
+          <SignupForm />
+        </Suspense>
       </div>
     </main>
   );

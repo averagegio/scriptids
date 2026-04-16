@@ -35,6 +35,8 @@ export async function POST(request: Request) {
   const b = body as Record<string, unknown>;
   const planId = typeof b.planId === "string" ? b.planId : "";
   const itemsRaw = Array.isArray(b.items) ? b.items : [];
+  const nextRaw = typeof b.next === "string" ? b.next : "";
+  const next = nextRaw.startsWith("/") ? nextRaw : "";
 
   const plan = PRICING_PLANS.find((p) => p.id === planId);
   if (!plan) {
@@ -60,19 +62,20 @@ export async function POST(request: Request) {
     .filter((x) => x.id && x.name && x.priceUsd > 0 && x.quantity > 0);
 
   const session = {
-    kind: "scriptids_mock_checkout",
+    kind: "scriptids_manual_checkout",
     sessionId: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
     planId: plan.id,
     planName: plan.name,
     planPriceMonthlyUsd: plan.priceMonthlyUsd,
     items,
+    next,
   };
 
   const token = base64UrlEncodeUtf8(JSON.stringify(session));
   return Response.json(
     withApiLinks({
-      checkoutUrl: `/checkout?session=${encodeURIComponent(token)}`,
+      checkoutUrl: `/checkout?session=${encodeURIComponent(token)}${next ? `&next=${encodeURIComponent(next)}` : ""}`,
     }),
   );
 }
@@ -112,10 +115,16 @@ export async function PUT(request: Request) {
     });
   }
 
+  const planId = typeof s.planId === "string" ? s.planId : "";
+  const nextRaw = typeof s.next === "string" ? s.next : "";
+  const next = nextRaw.startsWith("/") ? nextRaw : "";
+
   return Response.json(
     withApiLinks({
       status: "confirmed",
-      orderId: `demo_${sessionId}`,
+      orderId: `ord_${sessionId}`,
+      planId,
+      next,
     }),
   );
 }

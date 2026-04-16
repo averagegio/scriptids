@@ -13,8 +13,11 @@ export function validateAuthInput(email: unknown, password: unknown) {
   return { ok: true as const, email: email.trim().toLowerCase() };
 }
 
-/** Demo token only—replace with signed JWT + httpOnly cookie in production. */
-export function makeDemoToken(email: string) {
+/**
+ * Lightweight session token for early builds.
+ * Replace with signed JWT + httpOnly cookies when you harden auth.
+ */
+export function makeSessionToken(email: string) {
   const safe = encodeURIComponent(email).slice(0, 120);
-  return `demo.${safe}.${Date.now().toString(36)}`;
+  return `sid.${safe}.${Date.now().toString(36)}`;
 }

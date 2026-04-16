@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ORGANIZATION_PLANS, type PricingPlan } from "@/lib/pricing-data";
 
@@ -10,6 +10,10 @@ type Payload = {
   consumerPlans?: PricingPlan[];
   organizationPlans?: PricingPlan[];
   plans?: PricingPlan[];
+};
+
+type PricingClientProps = {
+  defaultSection?: "all" | "consumers" | "clinics";
 };
 
 function gridColsClass(count: number) {
@@ -23,25 +27,35 @@ function PlanGrid({
   plans,
   pendingPlan,
   onChoose,
+  emphasizedPlanId,
 }: {
   plans: PricingPlan[];
   pendingPlan: string | null;
   onChoose: (plan: PricingPlan) => void | Promise<void>;
+  emphasizedPlanId?: string | null;
 }) {
   return (
     <div className={`grid gap-6 ${gridColsClass(plans.length)}`}>
       {plans.map((plan) => (
         <article
           key={plan.id}
+          data-plan-id={plan.id}
           className={`flex flex-col rounded-2xl border p-6 shadow-sm ${
-            plan.featured
-              ? "border-[var(--accent)] bg-[var(--accent-muted)]/30"
-              : "border-[var(--border)] bg-[var(--surface)]"
+            emphasizedPlanId && plan.id === emphasizedPlanId
+              ? "border-[var(--accent)] bg-[var(--accent-muted)]/30 ring-2 ring-[var(--accent)]"
+              : plan.featured
+                ? "border-[var(--accent)] bg-[var(--accent-muted)]/30"
+                : "border-[var(--border)] bg-[var(--surface)]"
           }`}
         >
           {plan.featured && (
             <span className="mb-2 w-fit rounded-full bg-[var(--accent)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
               Popular
+            </span>
+          )}
+          {emphasizedPlanId && plan.id === emphasizedPlanId && !plan.featured && (
+            <span className="mb-2 w-fit rounded-full bg-[var(--accent)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+              Recommended
             </span>
           )}
           <h2 className="text-lg font-semibold text-[var(--foreground)]">
@@ -86,12 +100,16 @@ function PlanGrid({
   );
 }
 
-export function PricingClient() {
+export function PricingClient({ defaultSection = "all" }: PricingClientProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [data, setData] = useState<Payload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [pendingPlan, setPendingPlan] = useState<string | null>(null);
+  const emphasizedPlanId = searchParams.get("plan");
+  const next = searchParams.get("next");
+  const section = searchParams.get("section");
 
   useEffect(() => {
     let cancelled = false;
@@ -112,6 +130,22 @@ export function PricingClient() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!emphasizedPlanId) return;
+    const el = document.querySelector(
+      `[data-plan-id="${CSS.escape(emphasizedPlanId)}"]`,
+    );
+    if (!el) return;
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [emphasizedPlanId]);
+
+  useEffect(() => {
+    if (section !== "clinics") return;
+    const el = document.querySelector('[data-section="clinics"]');
+    if (!el) return;
+    el.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [section]);
 
   if (loading) {
     return (
@@ -140,12 +174,57 @@ export function PricingClient() {
     try {
       const isClinicSaaS = plan.id.startsWith("clinic-");
       if (isClinicSaaS) {
-        const qs = new URLSearchParams({
-          topic: "clinic-saas",
-          plan: plan.id,
-        });
-        router.push(`/contact?${qs.toString()}`);
-        return;
+        const nextSafe =
+          typeof next === "string" && next.startsWith("/") ? next : "/clinic/pa";
+        if (plan.priceMonthlyUsd === null) {
+          router.push("/contact");
+          return;
+        }
+        try {
+          const res = await fetch("/api/stripe/checkout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              planId: plan.id,
+              next: nextSafe,
+            }),
+          });
+          const json = (await res.json()) as
+            | { url?: string; error?: string }
+            | undefined;
+          if (!res.ok) throw new Error(json?.error || res.statusText);
+          localStorage.setItem("scriptids_plan", plan.id);
+          const url = json?.url;
+          if (!url) throw new Error("Missing Stripe checkout url");
+          window.location.assign(url);
+          return;
+        } catch {
+          const res = await fetch("/api/checkout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              planId: plan.id,
+              next: nextSafe,
+              items: [
+                {
+                  id: plan.id,
+                  name: plan.name,
+                  priceUsd: plan.priceMonthlyUsd,
+                  quantity: 1,
+                },
+              ],
+            }),
+          });
+          const json = (await res.json()) as
+            | { checkoutUrl?: string; error?: string }
+            | undefined;
+          if (!res.ok) throw new Error(json?.error || res.statusText);
+          localStorage.setItem("scriptids_plan", plan.id);
+          const url = json?.checkoutUrl;
+          if (!url) throw new Error("Missing checkout url");
+          router.push(url);
+          return;
+        }
       }
 
       if (plan.priceMonthlyUsd === 0) {
@@ -157,19 +236,52 @@ export function PricingClient() {
         router.push("/contact");
         return;
       }
-      const res = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId: plan.id }),
-      });
-      const json = (await res.json()) as
-        | { url?: string; error?: string }
-        | undefined;
-      if (!res.ok) throw new Error(json?.error || res.statusText);
-      localStorage.setItem("scriptids_plan", plan.id);
-      const url = json?.url;
-      if (!url) throw new Error("Missing Stripe checkout url");
-      window.location.assign(url);
+      const nextSafe = typeof next === "string" && next.startsWith("/") ? next : "";
+      try {
+        const res = await fetch("/api/stripe/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            planId: plan.id,
+            next: nextSafe,
+          }),
+        });
+        const json = (await res.json()) as
+          | { url?: string; error?: string }
+          | undefined;
+        if (!res.ok) throw new Error(json?.error || res.statusText);
+        localStorage.setItem("scriptids_plan", plan.id);
+        const url = json?.url;
+        if (!url) throw new Error("Missing Stripe checkout url");
+        window.location.assign(url);
+        return;
+      } catch {
+        // Local fallback when Stripe isn't configured.
+        const res = await fetch("/api/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            planId: plan.id,
+            next: nextSafe,
+            items: [
+              {
+                id: plan.id,
+                name: plan.name,
+                priceUsd: plan.priceMonthlyUsd,
+                quantity: 1,
+              },
+            ],
+          }),
+        });
+        const json = (await res.json()) as
+          | { checkoutUrl?: string; error?: string }
+          | undefined;
+        if (!res.ok) throw new Error(json?.error || res.statusText);
+        localStorage.setItem("scriptids_plan", plan.id);
+        const url = json?.checkoutUrl;
+        if (!url) throw new Error("Missing checkout url");
+        router.push(url);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Checkout failed");
     } finally {
@@ -179,7 +291,8 @@ export function PricingClient() {
 
   return (
     <div className="space-y-14">
-      <section className="space-y-4">
+      {(defaultSection === "all" || defaultSection === "consumers") && (
+        <section className="space-y-4">
         <div>
           <h2 className="text-lg font-semibold text-[var(--foreground)]">
             For consumers
@@ -197,10 +310,13 @@ export function PricingClient() {
           plans={consumerPlans}
           pendingPlan={pendingPlan}
           onChoose={choosePlan}
+          emphasizedPlanId={emphasizedPlanId}
         />
-      </section>
+        </section>
+      )}
 
-      <section className="space-y-4">
+      {(defaultSection === "all" || defaultSection === "clinics") && (
+        <section className="space-y-4" data-section="clinics">
         <div>
           <h2 className="text-lg font-semibold text-[var(--foreground)]">
             For clinics (SaaS)
@@ -220,9 +336,11 @@ export function PricingClient() {
             plans={organizationPlans}
             pendingPlan={pendingPlan}
             onChoose={choosePlan}
+            emphasizedPlanId={emphasizedPlanId}
           />
         )}
-      </section>
+        </section>
+      )}
 
       <p className="text-center text-xs text-[var(--muted)]">
         Organization plans are estimates until you speak with us. All prices are
@@ -231,3 +349,4 @@ export function PricingClient() {
     </div>
   );
 }
+

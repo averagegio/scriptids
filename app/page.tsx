@@ -65,7 +65,7 @@ export default function Home() {
 
           <p className="mt-5 max-w-2xl text-sm text-[var(--muted)]">
             Want more features?{" "}
-            <Link href="/pricing" className="font-semibold text-[var(--accent)] hover:underline">
+            <Link href="/pricing/consumers" className="font-semibold text-[var(--accent)] hover:underline">
               Try Scripti Plus
             </Link>
             .
@@ -159,7 +159,7 @@ export default function Home() {
                 Request a clinic pilot
               </Link>
               <Link
-                href="/pricing"
+                href="/pricing/clinics"
                 className="inline-flex items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--muted-bg)]"
               >
                 See pricing

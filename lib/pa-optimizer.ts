@@ -150,8 +150,21 @@ export function optimizePriorAuth(input: PriorAuthInput): PriorAuthOptimization 
   const { likelihood, drivers } = baseLikelihood(input);
 
   const medication = input.medication.trim();
+  const dose = (input.dose ?? "").trim();
+  const quantity = (input.quantity ?? "").trim();
+  const daysSupply = (input.daysSupply ?? "").trim();
   const indication = input.indication.trim();
   const dx = indication || "Diagnosis (add the condition your prescriber is treating)";
+
+  const requestedDrugAndDose = [
+    medication || "Medication",
+    dose ? `— ${dose}` : "— dose/frequency per prescription",
+    quantity ? `; Qty: ${quantity}` : "",
+    daysSupply ? `; Days supply: ${daysSupply}` : "",
+  ]
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
 
   const clinicalRationale = [
     `Requesting coverage for ${medication || "this medication"} for ${dx}.`,
@@ -161,6 +174,44 @@ export function optimizePriorAuth(input: PriorAuthInput): PriorAuthOptimization 
     "Request is medically necessary based on symptoms/diagnosis, prior therapy history, and clinical judgment.",
     "Please advise if additional documentation is required for this plan’s criteria.",
   ].join(" ");
+
+  const messageToPrescriber = [
+    "Hi—my pharmacy/plan indicates this prescription may require prior authorization.",
+    `Medication: ${requestedDrugAndDose}.`,
+    dx ? `Reason/diagnosis: ${dx}.` : "",
+    input.triedFirstLine
+      ? "I’ve tried first-line/preferred options when appropriate (please include names, dates, and outcomes if needed)."
+      : "If step therapy is required, please include prior therapies tried or why first-line options aren’t appropriate.",
+    "If you need anything from me (insurance details, history, screenshots of the rejection), I can send it.",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const insurerCallScript = [
+    "I’m calling to confirm coverage requirements for a prescription.",
+    `Medication: ${medication || "[medication]"}${dose ? ` (${dose})` : ""}.`,
+    dx ? `Indication/diagnosis: ${dx}.` : "",
+    "Can you tell me:",
+    "1) Whether prior authorization is required?",
+    "2) Any step-therapy or documentation criteria?",
+    "3) Where the PA should be submitted (ePA vs portal vs fax) and the fax/portal details?",
+    "4) Typical turnaround time and how to check status?",
+    "Please provide a reference number for this call if available.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const pharmacyCallScript = [
+    "Hi—can you tell me why my prescription is not going through?",
+    `Medication: ${medication || "[medication]"}${dose ? ` (${dose})` : ""}.`,
+    "Questions:",
+    "1) Is the rejection specifically ‘prior authorization required’ or something else (formulary, quantity limit, step therapy)?",
+    "2) What is the rejection code/message you see?",
+    "3) Does the plan require a specific preferred alternative first?",
+    "4) Where should my prescriber send the PA (ePA/portal/fax) based on what you see?",
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   return {
     approvalLikelihoodPct: likelihood,
@@ -179,10 +230,21 @@ export function optimizePriorAuth(input: PriorAuthInput): PriorAuthOptimization 
           ? "List prior therapies tried (names, dates, response)."
           : "Explain why preferred/first-line therapies were not used (contraindication, intolerance, urgency).",
         contraindicationsOrFailures: "Any contraindications, adverse reactions, or treatment failures relevant to this request.",
-        requestedDrugAndDose: `${medication || "Medication"} — dose/frequency per prescription.`,
+        requestedDrugAndDose,
       },
     },
     alternatives: alternativesFor(medication, input.insurance),
+    actionPlan: {
+      messageToPrescriber,
+      insurerCallScript,
+      pharmacyCallScript,
+      checklist: [
+        "Confirm whether PA is required (insurer/PBM or pharmacy).",
+        "Ask for the plan’s criteria (step therapy, diagnosis requirements, quantity limits).",
+        "Share the required details with the prescriber’s office.",
+        "Follow up in 2–3 business days if you don’t hear back.",
+      ],
+    },
   };
 }
 

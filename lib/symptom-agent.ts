@@ -1,6 +1,6 @@
 /**
- * Demo-only: pattern match on free text. Not a medical device.
- * Production should use clinician-in-the-loop workflows and regulated pathways.
+ * Heuristic pattern match on free text. Not a medical device.
+ * Clinical decisions should follow clinician-in-the-loop workflows and regulated pathways.
  */
 
 export type MedicationClassSuggestion = {

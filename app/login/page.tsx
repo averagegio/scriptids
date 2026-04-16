@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { BackNav } from "../components/BackNav";
 import { LoginForm } from "./LoginForm";
 
@@ -19,7 +20,11 @@ export default function LoginPage() {
         product for the first time, create an account on the sign-up page.
       </p>
       <div className="mt-8">
-        <LoginForm />
+        <Suspense
+          fallback={<p className="text-sm text-[var(--muted)]">Loading…</p>}
+        >
+          <LoginForm />
+        </Suspense>
       </div>
     </main>
   );

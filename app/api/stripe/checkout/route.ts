@@ -1,5 +1,5 @@
 import { withApiLinks } from "@/lib/api-meta";
-import { CONSUMER_PLANS } from "@/lib/pricing-data";
+import { PRICING_PLANS } from "@/lib/pricing-data";
 import { getStripe, getStripePriceIdForPlan } from "@/lib/stripe";
 
 export async function POST(request: Request) {
@@ -14,8 +14,10 @@ export async function POST(request: Request) {
 
   const b = body as Record<string, unknown>;
   const planId = typeof b.planId === "string" ? b.planId : "";
+  const nextRaw = typeof b.next === "string" ? b.next : "";
+  const next = nextRaw.startsWith("/") ? nextRaw : "";
 
-  const plan = CONSUMER_PLANS.find((p) => p.id === planId);
+  const plan = PRICING_PLANS.find((p) => p.id === planId);
   if (!plan) {
     return Response.json(withApiLinks({ error: "Unknown planId" }), {
       status: 400,
@@ -40,14 +42,18 @@ export async function POST(request: Request) {
     process.env.NEXT_PUBLIC_SITE_URL ||
     "https://scriptids.com";
 
+  const nextQs = next ? `&next=${encodeURIComponent(next)}` : "";
+  const planQs = `&plan=${encodeURIComponent(planId)}`;
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     line_items: [{ price, quantity: 1 }],
-    success_url: `${origin}/checkout?success=1&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${origin}/checkout?canceled=1`,
+    success_url: `${origin}/checkout?success=1&session_id={CHECKOUT_SESSION_ID}${planQs}${nextQs}`,
+    cancel_url: `${origin}/checkout?canceled=1${planQs}${nextQs}`,
     metadata: {
       planId,
-      product: "scriptids_consumer",
+      product: planId.startsWith("clinic-")
+        ? "scriptids_clinic"
+        : "scriptids_consumer",
     },
     allow_promotion_codes: true,
   });

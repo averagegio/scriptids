@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 export function LoginForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
@@ -32,6 +35,10 @@ export function LoginForm() {
       setMessage(data.message ?? "You're signed in.");
       if (typeof window !== "undefined" && data.token) {
         window.localStorage.setItem("scriptids_token", data.token);
+      }
+      const next = searchParams.get("next");
+      if (next && next.startsWith("/")) {
+        router.push(next);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Request failed");
@@ -83,7 +90,10 @@ export function LoginForm() {
       )}
       <p className="text-center text-sm text-[var(--muted)]">
         No account?{" "}
-        <Link href="/signup" className="font-medium text-[var(--accent)] hover:underline">
+        <Link
+          href={`/signup${searchParams.get("next") ? `?next=${encodeURIComponent(searchParams.get("next") ?? "")}` : ""}`}
+          className="font-medium text-[var(--accent)] hover:underline"
+        >
           Sign up
         </Link>
         {" · "}

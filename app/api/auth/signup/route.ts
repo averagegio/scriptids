@@ -1,5 +1,5 @@
 import { withApiLinks } from "@/lib/api-meta";
-import { makeDemoToken, validateAuthInput } from "@/lib/auth-demo";
+import { makeSessionToken, validateAuthInput } from "@/lib/auth-session";
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
 
   const name =
     typeof b.name === "string" && b.name.trim() ? b.name.trim() : undefined;
-  const token = makeDemoToken(v.email);
+  const token = makeSessionToken(v.email);
 
   return Response.json(
     withApiLinks({
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
       token,
       user: { email: v.email, name },
       message:
-        "Welcome! This early version may not store accounts permanently yet. We will email you when full accounts roll out.",
+        "Welcome—your workspace is ready. Email verification and long-term account storage will roll out as the release completes.",
     }),
   );
 }

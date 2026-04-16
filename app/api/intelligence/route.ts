@@ -31,7 +31,7 @@ async function openFdaFetchJson(url: string) {
   const res = await fetch(url, {
     headers: {
       // openFDA asks for contact info in User-Agent in some contexts; harmless here.
-      "User-Agent": "scriptids (drug intelligence demo)",
+      "User-Agent": "scriptids (openfda client)",
     },
     // This data is not truly realtime; cache a bit to reduce rate-limits.
     next: { revalidate: 60 * 60 * 6 },
@@ -90,7 +90,7 @@ export async function GET(request: Request) {
     return Response.json(withApiLinks({ profiles: [], query: q, limit }));
   }
 
-  // Try live openFDA/FAERS-backed results first; fall back to our mock dataset.
+  // Try live openFDA/FAERS-backed results first; fall back to a bundled reference dataset.
   try {
     const drugClause = buildDrugSearchClause(trimmed);
     const totalSignals = await openFdaTotal(drugClause);
@@ -139,6 +139,8 @@ export async function GET(request: Request) {
     return Response.json(withApiLinks({ profiles: [profile], query: q, limit, source: "openfda" }));
   } catch {
     const profiles = searchDrugProfiles(trimmed).slice(0, limit);
-    return Response.json(withApiLinks({ profiles, query: q, limit, source: "mock" }));
+    return Response.json(
+      withApiLinks({ profiles, query: q, limit, source: "reference" }),
+    );
   }
 }

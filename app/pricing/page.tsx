@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Suspense } from "react";
 import { BackNav } from "../components/BackNav";
 import { PricingClient } from "./PricingClient";
 
@@ -21,16 +21,18 @@ export default function PricingPage() {
         intelligence. Clinic SaaS plans are priced separately and usually include
         a monthly platform fee plus a per prior authorization case fee.
       </p>
+
       <div className="mt-10">
-        <PricingClient />
+        <Suspense
+          fallback={
+            <p className="text-center text-sm text-[var(--muted)]">
+              Loading plans…
+            </p>
+          }
+        >
+          <PricingClient defaultSection="all" />
+        </Suspense>
       </div>
-      <p className="mt-10 rounded-2xl border border-[var(--border)] bg-[var(--background)] px-5 py-4 text-center text-sm text-[var(--muted)]">
-        Need a custom bundle for your clinic, hub, or employer program?{" "}
-        <Link href="/contact" className="font-semibold text-[var(--accent)] hover:underline">
-          Talk to us
-        </Link>
-        .
-      </p>
     </main>
   );
 }

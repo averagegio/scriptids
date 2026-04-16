@@ -26,6 +26,9 @@ export async function POST(request: Request) {
     b.triedFirstLine === true || b.triedFirstLine === false
       ? b.triedFirstLine
       : false;
+  const dose = typeof b.dose === "string" ? b.dose : undefined;
+  const quantity = typeof b.quantity === "string" ? b.quantity : undefined;
+  const daysSupply = typeof b.daysSupply === "string" ? b.daysSupply : undefined;
 
   if (!isInsurance(insurance)) {
     return Response.json(
@@ -41,6 +44,9 @@ export async function POST(request: Request) {
     indication,
     insurance,
     triedFirstLine,
+    dose,
+    quantity,
+    daysSupply,
   };
 
   const prediction = predictPriorAuth(input);

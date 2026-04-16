@@ -36,7 +36,7 @@ export default function ContactPage() {
       </p>
       <p className="mt-4 text-center text-sm">
         <Link href="/pricing" className="text-[var(--accent)] hover:underline">
-          View pricing →
+          Pricing →
         </Link>
       </p>
     </main>

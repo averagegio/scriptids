@@ -33,6 +33,9 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# local persisted app data (uploads, clinic cases, etc.)
+.data/
+
 # vercel
 .vercel
 
