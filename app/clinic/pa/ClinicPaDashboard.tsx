@@ -118,6 +118,42 @@ export function ClinicPaDashboard() {
   const [selected, setSelected] = useState<ClinicPaCase | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const clearLocalCache = () => {
+    try {
+      window.localStorage.removeItem("scriptids_plan");
+      window.localStorage.removeItem("scriptids_token");
+    } catch {
+      // ignore
+    }
+    try {
+      window.sessionStorage.removeItem("scriptids_prior_auth_print_pack_v1");
+    } catch {
+      // ignore
+    }
+    try {
+      // Best-effort: only available in some browser contexts.
+      void (async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const w = window as any;
+        if (w?.caches?.keys && w?.caches?.delete) {
+          const keys: string[] = await w.caches.keys();
+          await Promise.all(keys.map((k) => w.caches.delete(k)));
+        }
+      })();
+    } catch {
+      // ignore
+    }
+  };
+
+  const logout = () => {
+    clearLocalCache();
+    try {
+      window.location.assign("/");
+    } catch {
+      // ignore
+    }
+  };
+
   useEffect(() => {
     try {
       setPlanId(window.localStorage.getItem("scriptids_plan"));
@@ -423,6 +459,27 @@ export function ClinicPaDashboard() {
               onClick={() => setCreateOpen(true)}
             >
               New case
+            </button>
+            <button
+              type="button"
+              className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--muted-bg)]"
+              onClick={() => {
+                clearLocalCache();
+                try {
+                  window.location.reload();
+                } catch {
+                  // ignore
+                }
+              }}
+            >
+              Clear cache
+            </button>
+            <button
+              type="button"
+              className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--muted-bg)]"
+              onClick={logout}
+            >
+              Log out
             </button>
             <button
               type="button"
