@@ -24,7 +24,8 @@ export function LoginForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      const data = (await res.json()) as {
+      const raw = await res.text();
+      const data = (raw ? JSON.parse(raw) : {}) as {
         success?: boolean;
         token?: string;
         message?: string;

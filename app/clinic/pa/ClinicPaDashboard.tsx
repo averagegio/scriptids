@@ -139,7 +139,11 @@ export function ClinicPaDashboard() {
     setLoading(true);
     try {
       const res = await fetch("/api/clinic/pa/cases");
-      const json = (await res.json()) as { cases?: ClinicPaCase[]; error?: string };
+      const raw = await res.text();
+      const json = (raw ? JSON.parse(raw) : {}) as {
+        cases?: ClinicPaCase[];
+        error?: string;
+      };
       if (!res.ok) throw new Error(json.error || res.statusText);
       setCases(Array.isArray(json.cases) ? json.cases : []);
     } catch (e) {
