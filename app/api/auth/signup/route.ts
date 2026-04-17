@@ -1,5 +1,6 @@
 import { withApiLinks } from "@/lib/api-meta";
 import { makeSessionToken, validateAuthInput } from "@/lib/auth-session";
+import { upsertUserProfile } from "@/lib/user-profiles";
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -21,6 +22,11 @@ export async function POST(request: Request) {
   const name =
     typeof b.name === "string" && b.name.trim() ? b.name.trim() : undefined;
   const token = makeSessionToken(v.email);
+  try {
+    await upsertUserProfile({ email: v.email, name });
+  } catch {
+    // Non-blocking: signup should succeed even if DB is unavailable.
+  }
 
   return Response.json(
     withApiLinks({

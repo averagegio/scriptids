@@ -1,5 +1,6 @@
 import { withApiLinks } from "@/lib/api-meta";
 import { makeSessionToken, validateAuthInput } from "@/lib/auth-session";
+import { upsertUserProfile } from "@/lib/user-profiles";
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -19,6 +20,11 @@ export async function POST(request: Request) {
   }
 
   const token = makeSessionToken(v.email);
+  try {
+    await upsertUserProfile({ email: v.email });
+  } catch {
+    // Non-blocking: login should succeed even if DB is unavailable.
+  }
   return Response.json(
     withApiLinks({
       success: true,
