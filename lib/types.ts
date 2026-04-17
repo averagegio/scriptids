@@ -77,6 +77,13 @@ export type ClinicPaTask = {
   doneAt?: string;
 };
 
+export type ClinicPaAttachment = {
+  id: string;
+  uploadId: string;
+  originalName: string;
+  createdAt: string;
+};
+
 export type ClinicPaCase = {
   id: string;
   createdAt: string;
@@ -97,6 +104,7 @@ export type ClinicPaCase = {
   /** Free-text internal notes; should not contain patient identifiers. */
   notes?: string;
   tasks: ClinicPaTask[];
+  attachments: ClinicPaAttachment[];
   /** Workflow timestamps used for SLA and reporting. */
   submittedAt?: string;
   lastPayerTouchAt?: string;

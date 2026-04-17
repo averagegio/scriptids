@@ -117,42 +117,7 @@ export function ClinicPaDashboard() {
 
   const [selected, setSelected] = useState<ClinicPaCase | null>(null);
   const [saving, setSaving] = useState(false);
-
-  const clearLocalCache = () => {
-    try {
-      window.localStorage.removeItem("scriptids_plan");
-      window.localStorage.removeItem("scriptids_token");
-    } catch {
-      // ignore
-    }
-    try {
-      window.sessionStorage.removeItem("scriptids_prior_auth_print_pack_v1");
-    } catch {
-      // ignore
-    }
-    try {
-      // Best-effort: only available in some browser contexts.
-      void (async () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const w = window as any;
-        if (w?.caches?.keys && w?.caches?.delete) {
-          const keys: string[] = await w.caches.keys();
-          await Promise.all(keys.map((k) => w.caches.delete(k)));
-        }
-      })();
-    } catch {
-      // ignore
-    }
-  };
-
-  const logout = () => {
-    clearLocalCache();
-    try {
-      window.location.assign("/");
-    } catch {
-      // ignore
-    }
-  };
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     try {
@@ -373,6 +338,79 @@ export function ClinicPaDashboard() {
     }
   };
 
+  const uploadPaperwork = async (file: File) => {
+    if (!selected) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.set("file", file);
+      const res = await fetch("/api/uploads", { method: "POST", body: form });
+      const raw = await res.text();
+      const json = (raw ? JSON.parse(raw) : {}) as {
+        upload?: { id: string; originalName: string; createdAt: string };
+        error?: string;
+      };
+      if (!res.ok) throw new Error(json.error || res.statusText);
+      const up = json.upload;
+      if (!up?.id) throw new Error("Upload failed");
+
+      const res2 = await fetch(
+        `/api/clinic/pa/cases/${encodeURIComponent(selected.id)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "add_attachment",
+            uploadId: up.id,
+            originalName: up.originalName,
+            createdAt: up.createdAt,
+          }),
+        },
+      );
+      const raw2 = await res2.text();
+      const json2 = (raw2 ? JSON.parse(raw2) : {}) as {
+        case?: ClinicPaCase;
+        error?: string;
+      };
+      if (!res2.ok) throw new Error(json2.error || res2.statusText);
+      if (json2.case) setSelected(json2.case);
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeAttachment = async (attachmentId: string) => {
+    if (!selected) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/clinic/pa/cases/${encodeURIComponent(selected.id)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "remove_attachment", attachmentId }),
+        },
+      );
+      const raw = await res.text();
+      const json = (raw ? JSON.parse(raw) : {}) as {
+        case?: ClinicPaCase;
+        error?: string;
+      };
+      if (!res.ok) throw new Error(json.error || res.statusText);
+      if (json.case) setSelected(json.case);
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Update failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   if (!allowed) {
     return (
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
@@ -459,27 +497,6 @@ export function ClinicPaDashboard() {
               onClick={() => setCreateOpen(true)}
             >
               New case
-            </button>
-            <button
-              type="button"
-              className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--muted-bg)]"
-              onClick={() => {
-                clearLocalCache();
-                try {
-                  window.location.reload();
-                } catch {
-                  // ignore
-                }
-              }}
-            >
-              Clear cache
-            </button>
-            <button
-              type="button"
-              className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--muted-bg)]"
-              onClick={logout}
-            >
-              Log out
             </button>
             <button
               type="button"
@@ -852,6 +869,66 @@ export function ClinicPaDashboard() {
                 onBlur={() => void updateSelected({ notes: selected.notes ?? "" })}
                 placeholder="Example: “Portal requires BMI and A1c; attach last visit note.”"
               />
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+                Paperwork uploads
+              </p>
+              <p className="mt-1 text-sm text-[var(--muted)]">
+                Upload non-identifying screenshots (portal requirements, payer messages, redacted forms).
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <label className="rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--muted-bg)]">
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    disabled={uploading}
+                    onChange={(e) => {
+                      const f = e.currentTarget.files?.[0];
+                      if (!f) return;
+                      void uploadPaperwork(f);
+                      e.currentTarget.value = "";
+                    }}
+                  />
+                  {uploading ? "Uploading…" : "Upload image"}
+                </label>
+              </div>
+              <div className="mt-3 space-y-2">
+                {(selected.attachments ?? []).length === 0 ? (
+                  <p className="text-sm text-[var(--muted)]">No paperwork uploaded yet.</p>
+                ) : (
+                  (selected.attachments ?? []).map((a) => (
+                    <div
+                      key={a.id}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--background)] p-3"
+                    >
+                      <div className="min-w-0">
+                        <a
+                          href={`/api/uploads/${encodeURIComponent(a.uploadId)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="truncate text-sm font-semibold text-[var(--foreground)] hover:underline"
+                        >
+                          {a.originalName}
+                        </a>
+                        <p className="mt-0.5 text-xs text-[var(--muted)]">
+                          Added {fmtDate(a.createdAt)}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={uploading}
+                        className="rounded-lg px-2 py-1 text-sm font-medium text-[var(--muted)] hover:bg-[var(--muted-bg)] disabled:opacity-60"
+                        onClick={() => void removeAttachment(a.id)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
 
             {(selected.status === "approved" || selected.status === "denied") && (

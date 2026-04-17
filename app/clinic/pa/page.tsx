@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BackNav } from "@/app/components/BackNav";
-import { ClinicPaDashboard } from "./ClinicPaDashboard";
 
 export const metadata: Metadata = {
   title: "Clinic prior auth workflow",
@@ -29,22 +28,76 @@ export default function ClinicPaPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Link
-            href="/pricing/clinics"
+            href="/signup?next=%2Fclinic%2Fpa%2Fdashboard"
+            className="rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white"
+          >
+            Sign up
+          </Link>
+          <Link
+            href="/login?next=%2Fclinic%2Fpa%2Fdashboard"
+            className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--muted-bg)]"
+          >
+            Log in
+          </Link>
+          <Link
+            href="/pricing/clinics?next=%2Fclinic%2Fpa%2Fdashboard"
             className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--muted-bg)]"
           >
             Clinic pricing
           </Link>
-          <Link
-            href="/pricing/clinics"
-            className="rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white"
-          >
-            Start Clinic Starter / Growth
-          </Link>
         </div>
       </div>
 
-      <div className="mt-8">
-        <ClinicPaDashboard />
+      <div className="mt-8 grid gap-6 md:grid-cols-3">
+        <section className="md:col-span-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
+          <h2 className="text-base font-semibold text-[var(--foreground)]">
+            What you can do
+          </h2>
+          <ul className="mt-4 space-y-2 text-sm text-[var(--foreground)]">
+            <li className="flex gap-2">
+              <span className="text-[var(--accent)]">·</span> Case queue with statuses and SLA hints
+            </li>
+            <li className="flex gap-2">
+              <span className="text-[var(--accent)]">·</span> Assign ownership, track tasks, and manage follow-ups
+            </li>
+            <li className="flex gap-2">
+              <span className="text-[var(--accent)]">·</span> Upload paperwork images per case (non-identifying)
+            </li>
+          </ul>
+          <div className="mt-6 flex flex-wrap gap-2">
+            <Link
+              href="/signup?next=%2Fclinic%2Fpa%2Fdashboard"
+              className="rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white"
+            >
+              Create clinic account
+            </Link>
+            <Link
+              href="/login?next=%2Fclinic%2Fpa%2Fdashboard"
+              className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--muted-bg)]"
+            >
+              Sign in
+            </Link>
+          </div>
+        </section>
+        <aside className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+            Dashboard
+          </p>
+          <h3 className="mt-1 text-base font-semibold text-[var(--foreground)]">
+            Already have access?
+          </h3>
+          <p className="mt-2 text-sm text-[var(--muted)]">
+            Go straight to the workflow dashboard.
+          </p>
+          <div className="mt-4">
+            <Link
+              href="/clinic/pa/dashboard"
+              className="rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--muted-bg)]"
+            >
+              Open dashboard →
+            </Link>
+          </div>
+        </aside>
       </div>
     </main>
   );

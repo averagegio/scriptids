@@ -1,6 +1,12 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import type { ClinicPaCase, ClinicPaStatus, ClinicPaTask, InsuranceType } from "./types";
+import type {
+  ClinicPaAttachment,
+  ClinicPaCase,
+  ClinicPaStatus,
+  ClinicPaTask,
+  InsuranceType,
+} from "./types";
 
 type StoreShape = {
   version: 1;
@@ -56,6 +62,10 @@ function defaultTasksForCase(): ClinicPaTask[] {
     t("Submit via required channel (ePA / portal / fax)"),
     t("Follow up if no response within SLA"),
   ];
+}
+
+function newAttachmentId() {
+  return newId("att");
 }
 
 export type ClinicPaCaseCreateInput = {
@@ -123,6 +133,7 @@ export async function clinicPaCreateCase(input: ClinicPaCaseCreateInput) {
     urgency: input.urgency ?? "standard",
     notes: input.notes?.trim() || undefined,
     tasks: defaultTasksForCase(),
+    attachments: [],
   };
   const next: StoreShape = { ...store, cases: [c, ...store.cases] };
   await writeStore(next);
@@ -201,6 +212,44 @@ export async function clinicPaToggleTask(caseId: string, taskId: string, done: b
       : t,
   );
   const updated: ClinicPaCase = { ...existing, tasks, updatedAt: nowIso() };
+  const nextCases = [...store.cases];
+  nextCases[idx] = updated;
+  await writeStore({ ...store, cases: nextCases });
+  return updated;
+}
+
+export async function clinicPaAddAttachment(
+  caseId: string,
+  input: Pick<ClinicPaAttachment, "uploadId" | "originalName"> & {
+    createdAt?: string;
+  },
+) {
+  const store = await ensureStore();
+  const idx = store.cases.findIndex((c) => c.id === caseId);
+  if (idx === -1) return null;
+  const existing = store.cases[idx]!;
+  const createdAt = input.createdAt ?? nowIso();
+  const att: ClinicPaAttachment = {
+    id: newAttachmentId(),
+    uploadId: input.uploadId,
+    originalName: input.originalName,
+    createdAt,
+  };
+  const attachments = [att, ...(existing.attachments ?? [])].slice(0, 30);
+  const updated: ClinicPaCase = { ...existing, attachments, updatedAt: nowIso() };
+  const nextCases = [...store.cases];
+  nextCases[idx] = updated;
+  await writeStore({ ...store, cases: nextCases });
+  return updated;
+}
+
+export async function clinicPaRemoveAttachment(caseId: string, attachmentId: string) {
+  const store = await ensureStore();
+  const idx = store.cases.findIndex((c) => c.id === caseId);
+  if (idx === -1) return null;
+  const existing = store.cases[idx]!;
+  const attachments = (existing.attachments ?? []).filter((a) => a.id !== attachmentId);
+  const updated: ClinicPaCase = { ...existing, attachments, updatedAt: nowIso() };
   const nextCases = [...store.cases];
   nextCases[idx] = updated;
   await writeStore({ ...store, cases: nextCases });

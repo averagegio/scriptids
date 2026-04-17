@@ -1,6 +1,8 @@
 import { withApiLinks } from "@/lib/api-meta";
 import {
+  clinicPaAddAttachment,
   clinicPaGetCase,
+  clinicPaRemoveAttachment,
   clinicPaToggleTask,
   clinicPaUpdateCase,
 } from "@/lib/clinic-pa-store";
@@ -93,6 +95,41 @@ export async function POST(
       return Response.json(withApiLinks({ error: "taskId required" }), { status: 400 });
     }
     const updated = await clinicPaToggleTask(id, taskId, done);
+    if (!updated) {
+      return Response.json(withApiLinks({ error: "Not found" }), { status: 404 });
+    }
+    return Response.json(withApiLinks({ case: updated }));
+  }
+
+  if (b.action === "add_attachment") {
+    const uploadId = typeof b.uploadId === "string" ? b.uploadId : "";
+    const originalName = typeof b.originalName === "string" ? b.originalName : "";
+    const createdAt = typeof b.createdAt === "string" ? b.createdAt : undefined;
+    if (!uploadId) {
+      return Response.json(withApiLinks({ error: "uploadId required" }), {
+        status: 400,
+      });
+    }
+    if (!originalName.trim()) {
+      return Response.json(withApiLinks({ error: "originalName required" }), {
+        status: 400,
+      });
+    }
+    const updated = await clinicPaAddAttachment(id, { uploadId, originalName, createdAt });
+    if (!updated) {
+      return Response.json(withApiLinks({ error: "Not found" }), { status: 404 });
+    }
+    return Response.json(withApiLinks({ case: updated }));
+  }
+
+  if (b.action === "remove_attachment") {
+    const attachmentId = typeof b.attachmentId === "string" ? b.attachmentId : "";
+    if (!attachmentId) {
+      return Response.json(withApiLinks({ error: "attachmentId required" }), {
+        status: 400,
+      });
+    }
+    const updated = await clinicPaRemoveAttachment(id, attachmentId);
     if (!updated) {
       return Response.json(withApiLinks({ error: "Not found" }), { status: 404 });
     }

@@ -19,42 +19,12 @@ const SIDEBAR_EXTRA = [{ href: "/api-reference", label: "API" }] as const;
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [signedIn, setSignedIn] = useState(false);
 
   const close = useCallback(() => setOpen(false), []);
 
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  useEffect(() => {
-    const read = () => {
-      try {
-        setSignedIn(Boolean(window.localStorage.getItem("scriptids_token")));
-      } catch {
-        setSignedIn(false);
-      }
-    };
-    read();
-    window.addEventListener("storage", read);
-    return () => window.removeEventListener("storage", read);
-  }, []);
-
-  const logout = useCallback(() => {
-    try {
-      window.localStorage.removeItem("scriptids_token");
-      window.localStorage.removeItem("scriptids_plan");
-    } catch {
-      // ignore
-    }
-    setSignedIn(false);
-    close();
-    try {
-      window.location.assign("/");
-    } catch {
-      // ignore
-    }
-  }, [close]);
 
   useEffect(() => {
     if (!open) return;
@@ -96,30 +66,18 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
-          {signedIn ? (
-            <button
-              type="button"
-              onClick={logout}
-              className="hidden rounded-lg px-3 py-1.5 text-sm font-semibold text-[var(--foreground)] transition-colors hover:bg-[var(--muted-bg)] md:inline-block"
-            >
-              Log out
-            </button>
-          ) : (
-            <>
-              <Link
-                href="/login"
-                className="hidden rounded-lg px-3 py-1.5 text-sm font-medium text-[var(--muted)] transition-colors hover:bg-[var(--muted-bg)] hover:text-[var(--foreground)] md:inline-block"
-              >
-                Log in
-              </Link>
-              <Link
-                href="/signup"
-                className="hidden rounded-lg bg-[var(--accent)] px-3 py-1.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 md:inline-block"
-              >
-                Sign up
-              </Link>
-            </>
-          )}
+          <Link
+            href="/login"
+            className="hidden rounded-lg px-3 py-1.5 text-sm font-medium text-[var(--muted)] transition-colors hover:bg-[var(--muted-bg)] hover:text-[var(--foreground)] md:inline-block"
+          >
+            Log in
+          </Link>
+          <Link
+            href="/signup"
+            className="hidden rounded-lg bg-[var(--accent)] px-3 py-1.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 md:inline-block"
+          >
+            Sign up
+          </Link>
 
           <button
             type="button"
@@ -199,32 +157,20 @@ export function SiteHeader() {
                 <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
                   Account
                 </p>
-                {signedIn ? (
-                  <button
-                    type="button"
-                    className="rounded-lg px-3 py-2.5 text-left text-[15px] font-semibold text-[var(--foreground)] transition-colors hover:bg-[var(--muted-bg)]"
-                    onClick={logout}
-                  >
-                    Log out
-                  </button>
-                ) : (
-                  <>
-                    <Link
-                      href="/login"
-                      className="rounded-lg px-3 py-2.5 text-[15px] font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--muted-bg)]"
-                      onClick={close}
-                    >
-                      Log in
-                    </Link>
-                    <Link
-                      href="/signup"
-                      className="mt-1 rounded-lg bg-[var(--accent)] px-3 py-2.5 text-center text-[15px] font-semibold text-white"
-                      onClick={close}
-                    >
-                      Sign up
-                    </Link>
-                  </>
-                )}
+                <Link
+                  href="/login"
+                  className="rounded-lg px-3 py-2.5 text-[15px] font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--muted-bg)]"
+                  onClick={close}
+                >
+                  Log in
+                </Link>
+                <Link
+                  href="/signup"
+                  className="mt-1 rounded-lg bg-[var(--accent)] px-3 py-2.5 text-center text-[15px] font-semibold text-white"
+                  onClick={close}
+                >
+                  Sign up
+                </Link>
               </nav>
             </aside>
           </>,
