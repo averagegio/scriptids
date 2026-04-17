@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { BackNav } from "../components/BackNav";
 import { SignupForm } from "./SignupForm";
 
@@ -8,7 +7,14 @@ export const metadata: Metadata = {
   description: "Create a Scriptids account.",
 };
 
-export default function SignupPage() {
+export default function SignupPage({
+  searchParams,
+}: {
+  searchParams?: Record<string, string | string[] | undefined>;
+}) {
+  const nextRaw = searchParams?.next;
+  const next =
+    typeof nextRaw === "string" && nextRaw.startsWith("/") ? nextRaw : null;
   return (
     <main className="mx-auto max-w-lg flex-1 px-4 py-10 sm:px-6">
       <BackNav />
@@ -20,11 +26,7 @@ export default function SignupPage() {
         strong password you do not reuse on other sites.
       </p>
       <div className="mt-8">
-        <Suspense
-          fallback={<p className="text-sm text-[var(--muted)]">Loading…</p>}
-        >
-          <SignupForm />
-        </Suspense>
+        <SignupForm next={next} />
       </div>
     </main>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ORGANIZATION_PLANS, type PricingPlan } from "@/lib/pricing-data";
 
@@ -14,6 +14,10 @@ type Payload = {
 
 type PricingClientProps = {
   defaultSection?: "all" | "consumers" | "clinics";
+  emphasizedPlanId?: string | null;
+  next?: string | null;
+  section?: string | null;
+  reason?: string | null;
 };
 
 function gridColsClass(count: number) {
@@ -100,16 +104,22 @@ function PlanGrid({
   );
 }
 
-export function PricingClient({ defaultSection = "all" }: PricingClientProps) {
+export function PricingClient({
+  defaultSection = "all",
+  emphasizedPlanId: emphasizedPlanIdProp = null,
+  next: nextProp = null,
+  section: sectionProp = null,
+  reason: reasonProp = null,
+}: PricingClientProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [data, setData] = useState<Payload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [pendingPlan, setPendingPlan] = useState<string | null>(null);
-  const emphasizedPlanId = searchParams.get("plan");
-  const next = searchParams.get("next");
-  const section = searchParams.get("section");
+  const emphasizedPlanId = emphasizedPlanIdProp;
+  const next = nextProp;
+  const section = sectionProp;
+  const planRequired = reasonProp === "plan_required";
 
   useEffect(() => {
     let cancelled = false;
@@ -180,6 +190,18 @@ export function PricingClient({ defaultSection = "all" }: PricingClientProps) {
           router.push("/contact");
           return;
         }
+        let email = "";
+        try {
+          const token = window.localStorage.getItem("scriptids_token");
+          if (token) {
+            const parts = token.split(".");
+            if (parts.length >= 3) {
+              email = decodeURIComponent(parts[1] ?? "");
+            }
+          }
+        } catch {
+          // ignore
+        }
         try {
           const res = await fetch("/api/stripe/checkout", {
             method: "POST",
@@ -187,6 +209,7 @@ export function PricingClient({ defaultSection = "all" }: PricingClientProps) {
             body: JSON.stringify({
               planId: plan.id,
               next: nextSafe,
+              email: email.includes("@") ? email : undefined,
             }),
           });
           const json = (await res.json()) as
@@ -321,6 +344,11 @@ export function PricingClient({ defaultSection = "all" }: PricingClientProps) {
           <h2 className="text-lg font-semibold text-[var(--foreground)]">
             For clinics (SaaS)
           </h2>
+          {planRequired && (
+            <p className="mt-2 max-w-3xl text-sm text-[var(--foreground)]">
+              A clinic plan is required to access the workflow dashboard. Choose a plan to continue.
+            </p>
+          )}
           <p className="mt-1 max-w-3xl text-sm text-[var(--muted)]">
             Clinic plans are contracted separately. In addition to the monthly
             platform fee, billing can include a per prior authorization case fee

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { BackNav } from "../components/BackNav";
 import { LoginForm } from "./LoginForm";
 
@@ -8,7 +7,14 @@ export const metadata: Metadata = {
   description: "Log in to your Scriptids account.",
 };
 
-export default function LoginPage() {
+export default function LoginPage({
+  searchParams,
+}: {
+  searchParams?: Record<string, string | string[] | undefined>;
+}) {
+  const nextRaw = searchParams?.next;
+  const next =
+    typeof nextRaw === "string" && nextRaw.startsWith("/") ? nextRaw : null;
   return (
     <main className="mx-auto max-w-lg flex-1 px-4 py-10 sm:px-6">
       <BackNav />
@@ -20,11 +26,7 @@ export default function LoginPage() {
         product for the first time, create an account on the sign-up page.
       </p>
       <div className="mt-8">
-        <Suspense
-          fallback={<p className="text-sm text-[var(--muted)]">Loading…</p>}
-        >
-          <LoginForm />
-        </Suspense>
+        <LoginForm next={next} />
       </div>
     </main>
   );

@@ -41,6 +41,8 @@ function clearLocalCache() {
 export function ClinicPaDashboardShell() {
   const [token, setToken] = useState<string | null>(null);
   const [planId, setPlanId] = useState<string | null>(null);
+  const [serverPlanId, setServerPlanId] = useState<string | null>(null);
+  const [serverStatus, setServerStatus] = useState<"active" | "inactive" | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -58,8 +60,34 @@ export function ClinicPaDashboardShell() {
     return () => window.removeEventListener("storage", read);
   }, []);
 
+  useEffect(() => {
+    if (!token) {
+      setServerPlanId(null);
+      setServerStatus(null);
+      return;
+    }
+    void (async () => {
+      try {
+        const res = await fetch("/api/clinic/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const raw = await res.text();
+        const json = (raw ? JSON.parse(raw) : {}) as {
+          clinicAccess?: { planId?: string | null; status?: "active" | "inactive" } | null;
+        };
+        const ca = json.clinicAccess ?? null;
+        setServerPlanId(ca?.planId ?? null);
+        setServerStatus(ca?.status ?? null);
+      } catch {
+        setServerPlanId(null);
+        setServerStatus(null);
+      }
+    })();
+  }, [token]);
+
   const signedIn = Boolean(token);
-  const allowed = signedIn && isClinicPlan(planId);
+  const effectivePlanId = serverPlanId ?? planId;
+  const allowed = signedIn && isClinicPlan(effectivePlanId) && (serverStatus ?? "active") === "active";
 
   const email = useMemo(() => {
     if (!token) return null;
@@ -72,6 +100,18 @@ export function ClinicPaDashboardShell() {
       return null;
     }
   }, [token]);
+
+  useEffect(() => {
+    if (!signedIn) return;
+    if (allowed) return;
+    // Signed in but not provisioned: send to pricing with an explicit reason.
+    const t = window.setTimeout(() => {
+      window.location.assign(
+        "/pricing/clinics?next=%2Fclinic%2Fpa%2Fdashboard&reason=plan_required",
+      );
+    }, 900);
+    return () => window.clearTimeout(t);
+  }, [allowed, signedIn]);
 
   if (!allowed) {
     return (
@@ -135,7 +175,7 @@ export function ClinicPaDashboardShell() {
             </span>
             <span className="text-xs text-[var(--muted)]">•</span>
             <span className="text-xs text-[var(--muted)]">
-              {planId ?? "clinic"}
+              {effectivePlanId ?? "clinic"}
             </span>
           </div>
 

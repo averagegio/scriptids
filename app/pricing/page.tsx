@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { BackNav } from "../components/BackNav";
 import { PricingClient } from "./PricingClient";
 
@@ -9,7 +8,18 @@ export const metadata: Metadata = {
     "Consumer plans for Scripti and prior authorization tools, plus clinic SaaS pricing.",
 };
 
-export default function PricingPage() {
+export default function PricingPage({
+  searchParams,
+}: {
+  searchParams?: Record<string, string | string[] | undefined>;
+}) {
+  const plan = typeof searchParams?.plan === "string" ? searchParams?.plan : null;
+  const nextRaw = searchParams?.next;
+  const next = typeof nextRaw === "string" && nextRaw.startsWith("/") ? nextRaw : null;
+  const section =
+    typeof searchParams?.section === "string" ? searchParams?.section : null;
+  const reason =
+    typeof searchParams?.reason === "string" ? searchParams?.reason : null;
   return (
     <main className="mx-auto max-w-6xl flex-1 px-4 py-10 sm:px-6">
       <BackNav />
@@ -23,15 +33,13 @@ export default function PricingPage() {
       </p>
 
       <div className="mt-10">
-        <Suspense
-          fallback={
-            <p className="text-center text-sm text-[var(--muted)]">
-              Loading plans…
-            </p>
-          }
-        >
-          <PricingClient defaultSection="all" />
-        </Suspense>
+        <PricingClient
+          defaultSection="all"
+          emphasizedPlanId={plan}
+          next={next}
+          section={section}
+          reason={reason}
+        />
       </div>
     </main>
   );

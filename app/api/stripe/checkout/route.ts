@@ -16,6 +16,7 @@ export async function POST(request: Request) {
   const planId = typeof b.planId === "string" ? b.planId : "";
   const nextRaw = typeof b.next === "string" ? b.next : "";
   const next = nextRaw.startsWith("/") ? nextRaw : "";
+  const email = typeof b.email === "string" ? b.email.trim().toLowerCase() : "";
 
   const plan = PRICING_PLANS.find((p) => p.id === planId);
   if (!plan) {
@@ -49,11 +50,13 @@ export async function POST(request: Request) {
     line_items: [{ price, quantity: 1 }],
     success_url: `${origin}/checkout?success=1&session_id={CHECKOUT_SESSION_ID}${planQs}${nextQs}`,
     cancel_url: `${origin}/checkout?canceled=1${planQs}${nextQs}`,
+    customer_email: email || undefined,
     metadata: {
       planId,
       product: planId.startsWith("clinic-")
         ? "scriptids_clinic"
         : "scriptids_consumer",
+      ...(email ? { email } : {}),
     },
     allow_promotion_codes: true,
   });
