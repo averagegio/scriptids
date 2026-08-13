@@ -49,3 +49,66 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
+
+/* Pitch deck motion */
+@keyframes pitch-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pitch-grow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes pitch-width {
+  from {
+    width: 0;
+  }
+}
+
+@keyframes pitch-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(2%, -3%, 0);
+  }
+}
+
+.pitch-reveal {
+  animation: pitch-rise 0.7s ease-out both;
+}
+
+.pitch-bar {
+  transform-origin: bottom;
+  animation: pitch-grow 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.pitch-fill {
+  animation: pitch-width 1s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.pitch-orb {
+  animation: pitch-drift 14s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pitch-reveal,
+  .pitch-bar,
+  .pitch-fill,
+  .pitch-orb {
+    animation: none !important;
+  }
+}

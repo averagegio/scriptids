@@ -8,6 +8,7 @@ const FOOTER_NAV = [
   { href: "/prior-auth", label: "Prior auth prediction" },
   { href: "/intelligence", label: "Drug intelligence" },
   { href: "/pricing", label: "Pricing" },
+  { href: "/pitch", label: "Pitch" },
   { href: "/api-reference", label: "API" },
   { href: "/contact", label: "Contact" },
   { href: "/login", label: "Log in" },
